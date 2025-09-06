@@ -83,7 +83,11 @@ end
 
 A domain object `Customer` has an `Invoice`.
 
-Objective - only send the invoice ID to the trace to save data.
+### Objective 
+
+Only send the invoice ID to the trace to save data.
+
+### Background
 
 Imagine domain objects are `Dry::Struct` value objects:
 
@@ -101,7 +105,7 @@ class Invoice < Dry::Struct
 end
 ```
 
-Two steps:
+### Solution
 
 1. Define custom formatting method - `#to_formatted_h`
   
@@ -134,14 +138,15 @@ Observable::Configuration.configure do |config|
 end
 ```
 
-
 The instrumenter tries class-specific formatters first, then falls back to the default formatter, then `to_s`.
 
-## Benefits vs. Hand-Rolling Your Own
+## Benefits
 
-• **Zero-touch instrumentation** - Wrap any method call without modifying existing code or manually creating spans
-• **Production-ready safety** - Built-in PII filtering, serialization depth limits, and exception handling prevent common observability pitfalls
-• **Standardized telemetry** - Consistent span naming, attribute structure, and OpenTelemetry compliance across your entire application
+Why use this library? Why not write Otel attributes manually?
+
+* **Zero-touch instrumentation** - Wrap any method call without modifying existing code or manually creating spans
+* **Production-ready safety** - Built-in PII filtering, serialization depth limits, and exception handling prevent common observability pitfalls
+* **Standardized telemetry** - Consistent span naming, attribute structure, and OpenTelemetry compliance across your entire application
 
 ## License
 
