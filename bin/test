@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+
+# Parse flags
+UNIT=false
+INTEGRATION=false
+SYSTEM=false
+TEST_NAME=""
+TEST_FILE=""
+
+# If specific test file is provided, run it directly
+if [[ $1 && $1 != -* ]]; then
+  TEST_FILE="$1"
+  shift
+  
+  # Check if we have a -n flag for test name
+  if [[ $1 == "-n" ]]; then
+    shift
+    TEST_NAME="$1"
+    shift
+    
+    # Look up the line number for the test name
+    if [[ -n "$TEST_NAME" && -f "$TEST_FILE" ]]; then
+      # Try with test_ prefix first, then without
+      LINE_NUMBER=$(grep -n "def test_${TEST_NAME// /_}" "$TEST_FILE" | cut -d: -f1)
+      if [[ -z "$LINE_NUMBER" ]]; then
+        # If not found with test_ prefix, try without it
+        LINE_NUMBER=$(grep -n "def ${TEST_NAME// /_}" "$TEST_FILE" | cut -d: -f1)
+      fi
+      if [[ -n "$LINE_NUMBER" ]]; then
+        # Replace -n with -l and the line number
+        bundle exec m "$TEST_FILE" -l "$LINE_NUMBER" "$@"
+        exit $?
+      else
+        echo "Test '$TEST_NAME' not found in $TEST_FILE"
+        exit 1
+      fi
+    fi
+  fi
+  
+  # No -n flag, run normally
+  bundle exec m "$TEST_FILE" "$@"
+  exit $?
+fi
+
+# Parse flags
+while [[ $1 == -* ]]; do
+  flag=$1
+  if [[ $flag == *u* ]]; then UNIT=true; fi
+  if [[ $flag == *i* ]]; then INTEGRATION=true; fi
+  if [[ $flag == *s* ]]; then SYSTEM=true; fi
+  shift
+done
+
+# If no flags specified, run all tests
+if [[ $UNIT == false && $INTEGRATION == false && $SYSTEM == false ]]; then
+  UNIT=true
+  INTEGRATION=true
+  SYSTEM=true
+fi
+
+# Build find command for test files
+FIND_PATHS=()
+if [[ $UNIT == true ]]; then
+  FIND_PATHS+=("test/unit")
+fi
+if [[ $INTEGRATION == true ]]; then
+  FIND_PATHS+=("test/integration")
+fi
+if [[ $SYSTEM == true ]]; then
+  FIND_PATHS+=("test/system")
+fi
+
+# Run all tests in a single Ruby process
+if [[ ${#FIND_PATHS[@]} -gt 0 ]]; then
+  TEST_FILES=$(find "${FIND_PATHS[@]}" -name "*_test.rb" -type f 2>/dev/null | sort)
+  if [[ -n "$TEST_FILES" ]]; then
+    bundle exec ruby -I lib:test -r test_helper -e "
+      %w[${TEST_FILES}].each { |file| require_relative file }
+    "
+  else
+    echo "No test files found"
+    exit 1
+  fi
+else
+  echo "No test directories selected"
+  exit 1
+fi
