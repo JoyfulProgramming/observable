@@ -1,37 +1,148 @@
 # Observable
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/observable`. To experiment with that code, run `bin/console` for an interactive prompt.
+Automatic OpenTelemetry instrumentation for Ruby methods with configurable serialization, PII filtering, and argument tracking.
 
-TODO: Delete this and the text above, and describe your gem
+## Getting Started
 
-## Installation
+```bash
+bundle add observable
+```
 
-Install the gem and add to the application's Gemfile by executing:
+Or
 
-    $ bundle add observable
+```ruby
+# Gemfile
+gem 'observable'
+```
 
-If bundler is not being used to manage dependencies, install the gem by executing:
+Basic usage:
 
-    $ gem install observable
+```ruby
+require 'observable'
 
-## Usage
+class UserService
+  def initialize
+    @instrumenter = Observable::Instrumenter.new
+  end
 
-TODO: Write usage instructions here
+  def create_user(name, email)
+    @instrumenter.instrument(binding) do
+      User.create(name: name, email: email)
+    end
+  end
+end
+```
 
-## Development
+OpenTelemetry spans are automatically created with method names, arguments, return values, and exceptions.
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake test` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+## Configuration
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+Configure globally or per-instrumenter:
 
-## Contributing
+```ruby
+# Global configuration
+Observable::Configuration.configure do |config|
+  config.app_namespace = "my_app"
+  config.track_return_values = true
+  config.max_serialization_depth = 4
+  config.pii_filters = [/password/i, /secret/i]
+end
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/johngallagher/observable. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/johngallagher/observable/blob/main/CODE_OF_CONDUCT.md).
+# Per-instrumenter configuration
+config = Observable::Configuration.new
+config.track_return_values = false
+instrumenter = Observable::Instrumenter.new(config: config)
+```
+
+### Default Configuration
+
+- `transport`: `:otel` - Uses OpenTelemetry SDK
+- `track_return_values`: `true` - Captures method return values
+- `max_serialization_depth`: `4` - Prevents infinite recursion
+- `formatters`: `{default: :to_h}` - Object serialization method
+- `pii_filters`: `[]` - Regex patterns to filter sensitive data
+
+## OpenTelemetry Integration
+
+This library seamlessly integrates with OpenTelemetry, the industry-standard observability framework. Spans are automatically created with standardized naming (`Class#method` or `Class.method`) and include rich metadata about method invocations, making your Ruby applications immediately observable without manual instrumentation.
+
+## Custom Formatters
+
+Control how domain objects are serialized in spans by configuring custom formatters.
+
+```ruby
+Observable::Configuration.configure do |config|
+  config.formatters = {
+    default: :to_h,
+    'YourCustomClass' => :to_formatted_h
+  }
+end
+```
+
+## Example
+
+A domain object `Customer` has an `Invoice`.
+
+Objective - only send the invoice ID to the trace to save data.
+
+Imagine domain objects are `Dry::Struct` value objects:
+
+```ruby
+class Customer < Dry::Struct
+  attribute :id, Dry.Types::String
+  attribute :name, Dry.Types::String
+  attribute :Invoice, Invoice
+end
+
+class Invoice < Dry::Struct
+  attribute :id, Dry.Types::String
+  attribute :status, Dry.Types::String
+  attribute :line_items, Dry.Types::Array
+end
+```
+
+Two steps:
+
+1. Define custom formatting method - `#to_formatted_h`
+  
+```diff
+ class Customer < Dry::Struct
+   attribute :id, Dry.Types::String
+   attribute :name, Dry.Types::String
+   attribute :Invoice, Invoice
+
++  def to_formatted_h
++    {
++      id: id,
++      name: name,
++      invoice: {
++       id: invoice.id
++      }
++    }
++  end
+ end
+```
+
+2. Configure observable:
+
+```ruby
+Observable::Configuration.configure do |config|
+  config.formatters = {
+    default: :to_h,
+    'Customer' => :to_formatted_h
+  }
+end
+```
+
+
+The instrumenter tries class-specific formatters first, then falls back to the default formatter, then `to_s`.
+
+## Benefits vs. Hand-Rolling Your Own
+
+• **Zero-touch instrumentation** - Wrap any method call without modifying existing code or manually creating spans
+• **Production-ready safety** - Built-in PII filtering, serialization depth limits, and exception handling prevent common observability pitfalls
+• **Standardized telemetry** - Consistent span naming, attribute structure, and OpenTelemetry compliance across your entire application
 
 ## License
 
-The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
-
-## Code of Conduct
-
-Everyone interacting in the Observable project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/johngallagher/observable/blob/main/CODE_OF_CONDUCT.md).
+MIT License. See LICENSE file for details.
