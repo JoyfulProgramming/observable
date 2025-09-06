@@ -105,10 +105,10 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  minitest (~> 5.0)
+  minitest (~> 5.14)
   observable!
   rake (~> 13.0)
-  standard
+  standard (~> 1.40)
 
 BUNDLED WITH
    2.6.3
