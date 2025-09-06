@@ -8,11 +8,11 @@ Gem::Specification.new do |spec|
   spec.authors = ["John Gallagher"]
   spec.email = ["john@synapticmishap.co.uk"]
 
-  spec.summary = "Observe your app using Open Telemetry"
-  spec.description = "Observe your app using Open Telemetry"
+  spec.summary = "OpenTelemetry instrumentation library for Ruby methods"
+  spec.description = "A Ruby gem that provides automated OpenTelemetry instrumentation for method calls with configurable serialization, PII filtering, and argument tracking"
   spec.homepage = "https://github.com/JoyfulProgramming/observable"
   spec.license = "MIT"
-  spec.required_ruby_version = ">= 2.6.0"
+  spec.required_ruby_version = ">= 3.0.0"
 
   spec.metadata["allowed_push_host"] = "https://rubygems.org"
 
@@ -31,8 +31,15 @@ Gem::Specification.new do |spec|
   spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
-  # Uncomment to register a new dependency of your gem
-  # spec.add_dependency "example-gem", "~> 1.0"
+  # Runtime dependencies
+  spec.add_dependency "opentelemetry-sdk", "~> 1.5"
+  spec.add_dependency "dry-configurable", ">= 0.13.0", "< 2.0"
+  spec.add_dependency "dry-struct", "~> 1.4"
+
+  # Development dependencies
+  spec.add_development_dependency "minitest", "~> 5.14"
+  spec.add_development_dependency "rake", "~> 13.0"
+  spec.add_development_dependency "standard", "~> 1.40"
 
   # For more information and examples about making a new gem, check out our
   # guide at: https://bundler.io/guides/creating_gem.html
