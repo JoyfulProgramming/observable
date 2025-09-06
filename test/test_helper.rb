@@ -2,6 +2,7 @@ $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "observable"
 require "minitest/autorun"
+require "support/tracing_test_helper"
 
 # Set up OpenTelemetry for testing
 require "opentelemetry/sdk"

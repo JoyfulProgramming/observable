@@ -1,8 +1,7 @@
 require "test_helper"
-require_relative "../test/support/tracing_test_helper"
 
 class InstrumenterTest < Minitest::Test
-  include Observable::TracingTestHelper
+  include TracingTestHelper
 
   def test_instrumenter_class_exists
     assert Observable::Instrumenter

@@ -111,13 +111,22 @@ module Observable
     end
 
     def create_instrumented_span(caller_info, &block)
-      # Store information for test access
-      @last_captured_method_name = caller_info.method_name
-      @last_captured_namespace = caller_info.namespace
-
       # Create span name with full class name and appropriate separator
       separator = caller_info.is_class_method ? "." : "#"
-      span_name = "#{caller_info.namespace}#{separator}#{caller_info.method_name}"
+
+      # Check if the method_name already includes the class name to avoid duplication
+      if caller_info.method_name.include?("#") || caller_info.method_name.include?(".")
+        span_name = caller_info.method_name
+        # Extract just the method name for test access (everything after the last # or .)
+        method_name_only = caller_info.method_name.split(/[#.]/).last
+      else
+        span_name = "#{caller_info.namespace}#{separator}#{caller_info.method_name}"
+        method_name_only = caller_info.method_name
+      end
+
+      # Store information for test access
+      @last_captured_method_name = method_name_only
+      @last_captured_namespace = caller_info.namespace
       @tracer.in_span(span_name) do |span|
         set_span_attributes(span, caller_info)
 
@@ -192,7 +201,9 @@ module Observable
       return unless @config.track_return_values
 
       case value
-      when String, Numeric, TrueClass, FalseClass, NilClass
+      when NilClass
+        span.set_attribute("code.return", "nil")
+      when String, Numeric, TrueClass, FalseClass
         span.set_attribute("code.return", value)
       when Hash
         serialize_hash(span, "code.return", value, 2)
