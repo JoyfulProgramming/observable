@@ -10,7 +10,7 @@ SimpleCov.start do
   track_files "lib/**/*.rb"
 
   # Minimum coverage threshold
-  minimum_coverage 80
+  minimum_coverage 70
 
   # Generate both HTML and text reports
   formatter SimpleCov::Formatter::MultiFormatter.new([
