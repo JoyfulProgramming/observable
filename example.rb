@@ -6,7 +6,6 @@ require_relative "lib/observable"
 Observable::Configuration.configure do |config|
   config.app_namespace = "example_app"
   config.track_return_values = true
-  config.max_serialization_depth = 3
   config.pii_filters = [/password/, /token/, /secret/]
 end
 

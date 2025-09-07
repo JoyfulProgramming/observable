@@ -42,9 +42,13 @@ Configure globally or per-instrumenter:
 ```ruby
 # Global configuration
 Observable::Configuration.configure do |config|
+  config.tracer_name = "my_app"
+  config.transport = :otel
   config.app_namespace = "my_app"
+  config.attribute_namespace = "my_app"
   config.track_return_values = true
-  config.max_serialization_depth = 4
+  config.serialization_depth = {default: 2, "MyClass" => 3}
+  config.formatters = {default: :to_h, "MyClass" => :to_formatted_h}
   config.pii_filters = [/password/i, /secret/i]
 end
 
@@ -54,13 +58,16 @@ config.track_return_values = false
 instrumenter = Observable::Instrumenter.new(config: config)
 ```
 
-### Default Configuration
+### Configuration Options
 
+- `tracer_name`: `"observable"` - Name for the OpenTelemetry tracer
 - `transport`: `:otel` - Uses OpenTelemetry SDK
-- `track_return_values`: `true` - Captures method return values
-- `max_serialization_depth`: `4` - Prevents infinite recursion
-- `formatters`: `{default: :to_h}` - Object serialization method
-- `pii_filters`: `[]` - Regex patterns to filter sensitive data
+- `app_namespace`: `"app"` - Namespace for application-specific attributes
+- `attribute_namespace`: `"app"` - Namespace for span attributes
+- `track_return_values`: `true` - Captures method return values in spans
+- `serialization_depth`: `{default: 2}` - Per-class serialization depth limits (Hash or Integer for backward compatibility)
+- `formatters`: `{default: :to_h}` - Object serialization methods by class name
+- `pii_filters`: `[]` - Regex patterns to filter sensitive data from spans
 
 ## OpenTelemetry Integration
 
@@ -75,6 +82,10 @@ Observable::Configuration.configure do |config|
   config.formatters = {
     default: :to_h,
     'YourCustomClass' => :to_formatted_h
+  }
+  config.serialization_depth = {
+    default: 2,
+    'YourCustomClass' => 3
   }
 end
 ```
@@ -134,6 +145,10 @@ Observable::Configuration.configure do |config|
   config.formatters = {
     default: :to_h,
     'Customer' => :to_formatted_h
+  }
+  config.serialization_depth = {
+    default: 2,
+    'Customer' => 3
   }
 end
 ```

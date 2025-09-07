@@ -72,7 +72,6 @@ The gem uses Dry::Configurable with these key settings:
 - `tracer_names` - OpenTelemetry tracer configuration
 - `formatters` - Object serialization methods (default: `:to_h`)
 - `pii_filters` - Regex patterns to filter sensitive data
-- `max_serialization_depth` - Prevents infinite recursion (default: 4)
 - `track_return_values` - Enable/disable return value capture (default: true)
 
 ## Usage Pattern

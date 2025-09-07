@@ -12,7 +12,6 @@ module Observable
     setting :formatters, default: {default: :to_h}
     setting :pii_filters, default: []
     setting :serialization_depth, default: {default: 2}
-    setting :max_serialization_depth, default: 4
     setting :track_return_values, default: true
   end
 
@@ -319,18 +318,11 @@ module Observable
     end
 
     def get_serialization_depth_for_class(class_name)
-      # Handle backward compatibility: if serialization_depth is a single integer
       if @config.serialization_depth.is_a?(Integer)
         return @config.serialization_depth
       end
 
-      # Handle new hash-based configuration
-      if @config.serialization_depth.is_a?(Hash)
-        return @config.serialization_depth[class_name] || @config.serialization_depth[:default] || @config.serialization_depth["default"] || 2
-      end
-
-      # Fallback to max_serialization_depth for legacy support
-      @config.max_serialization_depth || 2
+      @config.serialization_depth[class_name] || @config.serialization_depth[:default] || @config.serialization_depth["default"] || 2
     end
 
     def should_filter_pii?(param_name)
