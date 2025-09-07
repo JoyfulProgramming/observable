@@ -70,7 +70,6 @@ if [[ $SYSTEM == true ]]; then
   FIND_PATHS+=("test/system")
 fi
 
-# Run all tests in a single Ruby process
 if [[ ${#FIND_PATHS[@]} -gt 0 ]]; then
   TEST_FILES=$(find "${FIND_PATHS[@]}" -name "*_test.rb" -type f 2>/dev/null | sort)
   if [[ -n "$TEST_FILES" ]]; then
