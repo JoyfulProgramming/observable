@@ -1,0 +1,159 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require_relative "../lib/observable/version"
+
+def usage
+  puts <<~USAGE
+    Usage: bin/bump [--major|--minor|--patch]
+    
+    Bumps the version in lib/observable/version.rb and updates CHANGELOG.md
+    
+    Options:
+      --patch (default): Increment patch version (0.1.1 -> 0.1.2)
+      --minor:           Increment minor version (0.1.1 -> 0.2.0)
+      --major:           Increment major version (0.1.1 -> 1.0.0)
+    
+    Examples:
+      bin/bump           # Bump patch version
+      bin/bump --patch   # Bump patch version
+      bin/bump --minor   # Bump minor version
+      bin/bump --major   # Bump major version
+  USAGE
+end
+
+def parse_version(version_string)
+  match = version_string.match(/(\d+)\.(\d+)\.(\d+)/)
+  return nil unless match
+
+  [match[1].to_i, match[2].to_i, match[3].to_i]
+end
+
+def format_version(major, minor, patch)
+  "#{major}.#{minor}.#{patch}"
+end
+
+def bump_version(current_version, bump_type)
+  major, minor, patch = parse_version(current_version)
+  return nil unless major
+
+  case bump_type
+  when :major
+    [major + 1, 0, 0]
+  when :minor
+    [major, minor + 1, 0]
+  when :patch
+    [major, minor, patch + 1]
+  else
+    nil
+  end
+end
+
+def update_version_file(new_version)
+  version_file = "lib/observable/version.rb"
+  content = File.read(version_file)
+  
+  # Update the VERSION constant
+  updated_content = content.gsub(/VERSION = ".*"/, %{VERSION = "#{new_version}"})
+  
+  File.write(version_file, updated_content)
+  puts "Updated #{version_file}: #{Observable::VERSION} -> #{new_version}"
+end
+
+def update_changelog(new_version)
+  changelog_file = "CHANGELOG.md"
+  return unless File.exist?(changelog_file)
+  
+  content = File.read(changelog_file)
+  today = Time.now.strftime("%Y-%m-%d")
+  
+  new_entry = <<~ENTRY
+    ## [#{new_version}] - #{today}
+
+    ### Changed
+    - Version bump
+
+  ENTRY
+  
+  # Insert new version entry after "## [Unreleased]"
+  updated_content = content.sub(/(## \[Unreleased\]\s*\n)/, "\\1\n#{new_entry}")
+  
+  File.write(changelog_file, updated_content)
+  puts "Updated #{changelog_file} with new version entry"
+end
+
+def get_recent_commits_since_last_tag
+  # Get the last tag
+  last_tag = `git describe --tags --abbrev=0 2>/dev/null`.strip
+  return [] if last_tag.empty?
+  
+  # Get commits since last tag
+  commits = `git log #{last_tag}..HEAD --oneline --no-merges`.strip.split("\n")
+  commits.map(&:strip).reject(&:empty?)
+end
+
+def suggest_changelog_updates(new_version)
+  recent_commits = get_recent_commits_since_last_tag
+  
+  if recent_commits.any?
+    puts "\n📝 Recent commits since last tag:"
+    recent_commits.each { |commit| puts "  - #{commit}" }
+    puts "\n💡 Consider updating CHANGELOG.md with meaningful changes before committing."
+  end
+end
+
+# Parse command line arguments
+bump_type = :patch
+
+case ARGV[0]
+when "--help", "-h"
+  usage
+  exit 0
+when "--major"
+  bump_type = :major
+when "--minor"
+  bump_type = :minor
+when "--patch", nil
+  bump_type = :patch
+else
+  puts "Error: Unknown option '#{ARGV[0]}'"
+  puts
+  usage
+  exit 1
+end
+
+# Get current version
+current_version = Observable::VERSION
+puts "Current version: #{current_version}"
+
+# Calculate new version
+new_major, new_minor, new_patch = bump_version(current_version, bump_type)
+unless new_major
+  puts "Error: Could not parse current version '#{current_version}'"
+  exit 1
+end
+
+new_version = format_version(new_major, new_minor, new_patch)
+puts "New version: #{new_version} (#{bump_type} bump)"
+
+# Confirm the change
+print "Proceed with version bump? [y/N]: "
+response = STDIN.gets.strip.downcase
+
+unless response == 'y' || response == 'yes'
+  puts "Version bump cancelled."
+  exit 0
+end
+
+# Update files
+update_version_file(new_version)
+update_changelog(new_version)
+
+# Suggest changelog review
+suggest_changelog_updates(new_version)
+
+puts "\n✅ Version bumped successfully!"
+puts "Next steps:"
+puts "  1. Review and update CHANGELOG.md with meaningful changes"
+puts "  2. Commit the changes: git add -A && git commit -m 'chore: bump version to #{new_version}'"
+puts "  3. Push to trigger release: git push origin main"
