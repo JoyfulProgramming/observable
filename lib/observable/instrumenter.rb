@@ -106,16 +106,18 @@ module Observable
 
       if caller_info.method_name.include?("#") || caller_info.method_name.include?(".")
         span_name = caller_info.method_name
+        function_name = caller_info.method_name
         method_name_only = caller_info.method_name.split(/[#.]/).last
       else
         span_name = "#{caller_info.namespace}#{separator}#{caller_info.method_name}"
+        function_name = "#{caller_info.namespace}#{separator}#{caller_info.method_name}"
         method_name_only = caller_info.method_name
       end
 
       @last_captured_method_name = method_name_only
       @last_captured_namespace = caller_info.namespace
       @tracer.in_span(span_name) do |span|
-        set_span_attributes(span, caller_info)
+        set_span_attributes(span, caller_info, function_name)
 
         begin
           result = block.call
@@ -132,8 +134,8 @@ module Observable
       end
     end
 
-    def set_span_attributes(span, caller_info)
-      span.set_attribute("code.function", caller_info.method_name)
+    def set_span_attributes(span, caller_info, function_name)
+      span.set_attribute("code.function", function_name)
       span.set_attribute("code.namespace", caller_info.namespace)
       span.set_attribute("code.filepath", caller_info.filepath)
       span.set_attribute("code.lineno", caller_info.line_number)
