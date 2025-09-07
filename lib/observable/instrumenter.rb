@@ -9,9 +9,10 @@ module Observable
     setting :transport, default: :otel
     setting :app_namespace, default: "app"
     setting :attribute_namespace, default: "app"
-    setting :formatter, default: {default: :to_h}
+    setting :formatters, default: {default: :to_h}
     setting :pii_filters, default: []
     setting :serialization_depth, default: {default: 2}
+    setting :max_serialization_depth, default: 4
     setting :track_return_values, default: true
   end
 
@@ -169,6 +170,24 @@ module Observable
       end
     end
 
+    def serialize_argument_with_custom_depth(span, attribute_prefix, value, custom_max_depth, param_name = nil, depth = 0)
+      if param_name && should_filter_pii?(param_name)
+        span.set_attribute(attribute_prefix, "[FILTERED]")
+        return
+      end
+
+      case value
+      when String, Numeric, TrueClass, FalseClass, NilClass
+        span.set_attribute(attribute_prefix, value)
+      when Hash
+        serialize_hash_with_custom_depth(span, attribute_prefix, value, custom_max_depth, depth)
+      when Array
+        serialize_array_with_custom_depth(span, attribute_prefix, value, custom_max_depth, depth)
+      else
+        serialize_object_with_custom_depth(span, attribute_prefix, value, custom_max_depth, depth)
+      end
+    end
+
     def serialize_return_value(span, value)
       return unless @config.track_return_values
 
@@ -187,7 +206,8 @@ module Observable
     end
 
     def serialize_hash(span, prefix, hash, depth = 0)
-      return if depth >= @config.max_serialization_depth
+      max_depth = get_serialization_depth_for_class("Hash")
+      return if depth > max_depth
 
       hash.each do |key, value|
         key_str = key.to_s
@@ -196,16 +216,32 @@ module Observable
       end
     end
 
-    def serialize_array(span, prefix, array, depth = 0)
-      return if depth > @config.max_serialization_depth
+    def serialize_hash_with_custom_depth(span, prefix, hash, custom_max_depth, depth = 0)
+      return if depth > custom_max_depth
 
-      items_to_process = [array.length, 10].min
-      array.first(items_to_process).each_with_index do |item, index|
-        serialize_argument(span, "#{prefix}.#{index}", item, nil, depth + 1)
+      hash.each do |key, value|
+        key_str = key.to_s
+        next if should_filter_pii?(key_str)
+        serialize_argument_with_custom_depth(span, "#{prefix}.#{key_str}", value, custom_max_depth, nil, depth + 1)
       end
     end
 
-    def serialize_object(span, prefix, obj, depth = 0)
+    def serialize_array_with_custom_depth(span, prefix, array, custom_max_depth, depth = 0)
+      return if depth > custom_max_depth
+
+      items_to_process = [array.length, 10].min
+      array.first(items_to_process).each_with_index do |item, index|
+        serialize_argument_with_custom_depth(span, "#{prefix}.#{index}", item, custom_max_depth, nil, depth + 1)
+      end
+    end
+
+    def serialize_object_with_custom_depth(span, prefix, obj, custom_max_depth, depth = 0)
+      if depth >= custom_max_depth
+        span.set_attribute("#{prefix}.class", obj.class.name)
+        span.set_attribute(prefix, obj.to_s)
+        return
+      end
+
       span.set_attribute("#{prefix}.class", obj.class.name)
 
       formatter = find_formatter_for_class(obj.class.name)
@@ -213,7 +249,7 @@ module Observable
       if formatter && obj.respond_to?(formatter)
         result = obj.send(formatter)
         if result.is_a?(Hash)
-          serialize_hash(span, prefix, result, depth)
+          serialize_hash_with_custom_depth(span, prefix, result, custom_max_depth, depth)
           return
         end
       end
@@ -222,7 +258,55 @@ module Observable
       if default_formatter && obj.respond_to?(default_formatter)
         result = obj.send(default_formatter)
         if result.is_a?(Hash)
-          serialize_hash(span, prefix, result, depth)
+          serialize_hash_with_custom_depth(span, prefix, result, custom_max_depth, depth)
+          return
+        end
+      end
+
+      span.set_attribute(prefix, obj.to_s)
+    end
+
+    def serialize_array(span, prefix, array, depth = 0)
+      max_depth = get_serialization_depth_for_class("Array")
+      return if depth > max_depth
+
+      items_to_process = [array.length, 10].min
+      array.first(items_to_process).each_with_index do |item, index|
+        serialize_argument(span, "#{prefix}.#{index}", item, nil, depth + 1)
+      end
+    end
+
+    def serialize_object(span, prefix, obj, depth = 0)
+      max_depth = get_serialization_depth_for_class(obj.class.name)
+
+      # If we've reached the depth limit for this class, just set the class name
+      if depth >= max_depth
+        span.set_attribute("#{prefix}.class", obj.class.name)
+        span.set_attribute(prefix, obj.to_s)
+        return
+      end
+
+      span.set_attribute("#{prefix}.class", obj.class.name)
+
+      formatter = find_formatter_for_class(obj.class.name)
+
+      if formatter && obj.respond_to?(formatter)
+        result = obj.send(formatter)
+        if result.is_a?(Hash)
+          # When object converts to hash, the hash starts fresh at depth 0
+          # but we need to enforce the object's depth limit
+          serialize_hash_with_custom_depth(span, prefix, result, max_depth, 0)
+          return
+        end
+      end
+
+      default_formatter = @config.formatters[:default]
+      if default_formatter && obj.respond_to?(default_formatter)
+        result = obj.send(default_formatter)
+        if result.is_a?(Hash)
+          # When object converts to hash, the hash starts fresh at depth 0
+          # but we need to enforce the object's depth limit
+          serialize_hash_with_custom_depth(span, prefix, result, max_depth, 0)
           return
         end
       end
@@ -232,6 +316,21 @@ module Observable
 
     def find_formatter_for_class(class_name)
       @config.formatters[class_name]
+    end
+
+    def get_serialization_depth_for_class(class_name)
+      # Handle backward compatibility: if serialization_depth is a single integer
+      if @config.serialization_depth.is_a?(Integer)
+        return @config.serialization_depth
+      end
+
+      # Handle new hash-based configuration
+      if @config.serialization_depth.is_a?(Hash)
+        return @config.serialization_depth[class_name] || @config.serialization_depth[:default] || @config.serialization_depth["default"] || 2
+      end
+
+      # Fallback to max_serialization_depth for legacy support
+      @config.max_serialization_depth || 2
     end
 
     def should_filter_pii?(param_name)
