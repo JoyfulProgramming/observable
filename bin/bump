@@ -28,7 +28,7 @@ end
 
 def bump_version_with_gem(bump_type)
   # Delegate to the bump gem for all version bumping
-  result = Bump::Bump.run(bump_type.to_s, commit: false, tag: false, bundle: false)
+  result = Bump::Bump.run(bump_type.to_s, commit: true, tag: false, bundle: true)
   
   # The bump gem returns an array with [version, exit_code], we want just the version
   result.is_a?(Array) ? result[0] : result

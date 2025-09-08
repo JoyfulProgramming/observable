@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    observable (0.1.2.pre.alpha)
+    observable (0.1.2)
       dry-configurable (>= 0.13.0, < 2.0)
       dry-struct (~> 1.4)
       opentelemetry-sdk (~> 1.5)
