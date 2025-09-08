@@ -1,20 +1,7 @@
 require "opentelemetry/sdk"
-require "dry/configurable"
+require_relative "configuration"
 
 module Observable
-  class Configuration
-    extend Dry::Configurable
-
-    setting :tracer_name, default: "observable"
-    setting :transport, default: :otel
-    setting :app_namespace, default: "app"
-    setting :attribute_namespace, default: "app"
-    setting :formatters, default: {default: :to_h}
-    setting :pii_filters, default: []
-    setting :serialization_depth, default: {default: 2}
-    setting :track_return_values, default: true
-  end
-
   class Instrumenter
     attr_reader :last_captured_method_name, :last_captured_namespace, :config
 
