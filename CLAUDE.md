@@ -56,11 +56,33 @@ bin/console
 bundle exec rake build
 ```
 
-### Release Process
+### Version Management
 ```bash
-# Update version in lib/observable/version.rb
-bundle exec rake release
+# Bump patch version (0.1.1 -> 0.1.2)
+bin/bump
+
+# Bump minor version (0.1.1 -> 0.2.0)
+bin/bump --minor
+
+# Bump major version (0.1.1 -> 1.0.0)
+bin/bump --major
 ```
+
+### Release Process
+
+The project uses automated releases via GitHub Actions:
+
+1. **Manual Release**: Use `bin/bump` to increment version, update CHANGELOG.md, then commit and push to `main`
+2. **Automated Release**: When a version change is detected in a push to `main`, GitHub Actions will:
+   - Run tests across multiple Ruby versions
+   - Run linting checks
+   - Build the gem
+   - Create a GitHub release with changelog
+   - Publish to RubyGems (requires `RUBYGEMS_API_KEY` secret)
+
+**Prerequisites for automated release:**
+- Set `RUBYGEMS_API_KEY` secret in GitHub repository settings
+- Ensure CHANGELOG.md is updated with meaningful changes
 
 ## Configuration System
 

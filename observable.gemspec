@@ -12,7 +12,7 @@ Gem::Specification.new do |spec|
   spec.description = "A Ruby gem that provides automated OpenTelemetry instrumentation for method calls with configurable serialization, PII filtering, and argument tracking"
   spec.homepage = "https://github.com/JoyfulProgramming/observable"
   spec.license = "MIT"
-  spec.required_ruby_version = ">= 3.0.0"
+  spec.required_ruby_version = ">= 3.2.0"
 
   spec.metadata["allowed_push_host"] = "https://rubygems.org"
 

@@ -1,0 +1,273 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require_relative "../lib/observable/version"
+
+def usage
+  puts <<~USAGE
+    Usage: bin/bump [--major|--minor|--patch]
+    
+    Bumps the version in lib/observable/version.rb and updates CHANGELOG.md
+    
+    Options:
+      --patch (default): Increment patch version (0.1.1 -> 0.1.2)
+      --minor:           Increment minor version (0.1.1 -> 0.2.0)
+      --major:           Increment major version (0.1.1 -> 1.0.0)
+    
+    Examples:
+      bin/bump           # Bump patch version
+      bin/bump --patch   # Bump patch version
+      bin/bump --minor   # Bump minor version
+      bin/bump --major   # Bump major version
+  USAGE
+end
+
+def parse_version(version_string)
+  match = version_string.match(/(\d+)\.(\d+)\.(\d+)/)
+  return nil unless match
+
+  [match[1].to_i, match[2].to_i, match[3].to_i]
+end
+
+def format_version(major, minor, patch)
+  "#{major}.#{minor}.#{patch}"
+end
+
+def bump_version(current_version, bump_type)
+  major, minor, patch = parse_version(current_version)
+  return nil unless major
+
+  case bump_type
+  when :major
+    [major + 1, 0, 0]
+  when :minor
+    [major, minor + 1, 0]
+  when :patch
+    [major, minor, patch + 1]
+  else
+    nil
+  end
+end
+
+def update_version_file(new_version)
+  version_file = "lib/observable/version.rb"
+  content = File.read(version_file)
+  
+  # Update the VERSION constant
+  updated_content = content.gsub(/VERSION = ".*"/, %{VERSION = "#{new_version}"})
+  
+  File.write(version_file, updated_content)
+  puts "Updated #{version_file}: #{Observable::VERSION} -> #{new_version}"
+end
+
+def update_changelog(new_version)
+  changelog_file = "CHANGELOG.md"
+  return unless File.exist?(changelog_file)
+  
+  content = File.read(changelog_file)
+  today = Time.now.strftime("%Y-%m-%d")
+  
+  # Get commits since last tag and categorize them
+  recent_commits = get_recent_commits_since_last_tag
+  categorized_commits = categorize_commits(recent_commits)
+  
+  # Generate changelog content from commits
+  changelog_content = generate_changelog_content(categorized_commits)
+  
+  # If no commits found or no content generated, use default
+  if changelog_content.empty?
+    changelog_content = "### Changed\n- Version bump\n\n"
+  end
+  
+  new_entry = <<~ENTRY
+    ## [#{new_version}] - #{today}
+
+    #{changelog_content}
+  ENTRY
+  
+  # Insert new version entry after "## [Unreleased]"
+  updated_content = content.sub(/(## \[Unreleased\]\s*\n)/, "\\1\n#{new_entry}")
+  
+  File.write(changelog_file, updated_content)
+  puts "Updated #{changelog_file} with new version entry"
+  
+  if recent_commits.any?
+    puts "📝 Generated changelog from #{recent_commits.length} commit(s) since last tag"
+  end
+end
+
+def get_recent_commits_since_last_tag
+  # Get the last tag
+  last_tag = `git describe --tags --abbrev=0 2>/dev/null`.strip
+  return [] if last_tag.empty?
+  
+  # Get commits since last tag with full commit messages
+  commits = `git log #{last_tag}..HEAD --no-merges --pretty=format:"%s"`.strip.split("\n")
+  commits.map(&:strip).reject(&:empty?)
+end
+
+def parse_conventional_commit(commit_message)
+  # Parse conventional commit format: type(scope): description
+  # Examples: feat: add new feature, fix(auth): resolve login issue, chore: update dependencies
+  match = commit_message.match(/^(\w+)(?:\(([^)]+)\))?: (.+)$/)
+  
+  if match
+    type = match[1].downcase
+    scope = match[2]
+    description = match[3]
+    
+    # Map conventional commit types to changelog sections
+    section = case type
+    when 'feat', 'feature'
+      'Added'
+    when 'fix', 'bugfix'
+      'Fixed'
+    when 'perf'
+      'Performance'
+    when 'refactor'
+      'Changed'
+    when 'style'
+      'Changed'
+    when 'test'
+      'Changed'
+    when 'chore'
+      'Changed'
+    when 'docs'
+      'Changed'
+    when 'ci'
+      'Changed'
+    when 'build'
+      'Changed'
+    when 'revert'
+      'Changed'
+    else
+      'Changed'
+    end
+    
+    {
+      type: type,
+      scope: scope,
+      description: description,
+      section: section,
+      formatted: scope ? "#{description} (#{scope})" : description
+    }
+  else
+    # Non-conventional commit, treat as general change
+    {
+      type: 'other',
+      scope: nil,
+      description: commit_message,
+      section: 'Changed',
+      formatted: commit_message
+    }
+  end
+end
+
+def categorize_commits(commits)
+  categorized = Hash.new { |h, k| h[k] = [] }
+  
+  commits.each do |commit|
+    parsed = parse_conventional_commit(commit)
+    categorized[parsed[:section]] << parsed[:formatted]
+  end
+  
+  categorized
+end
+
+def generate_changelog_content(categorized_commits)
+  return "" if categorized_commits.empty?
+  
+  content = ""
+  
+  # Define section order
+  section_order = ['Added', 'Fixed', 'Performance', 'Changed']
+  
+  section_order.each do |section|
+    if categorized_commits[section]&.any?
+      content += "### #{section}\n"
+      categorized_commits[section].each do |item|
+        content += "- #{item}\n"
+      end
+      content += "\n"
+    end
+  end
+  
+  # Add any remaining sections not in the predefined order
+  categorized_commits.each do |section, items|
+    unless section_order.include?(section)
+      content += "### #{section}\n"
+      items.each do |item|
+        content += "- #{item}\n"
+      end
+      content += "\n"
+    end
+  end
+  
+  content
+end
+
+def suggest_changelog_updates(new_version)
+  recent_commits = get_recent_commits_since_last_tag
+  
+  if recent_commits.any?
+    puts "\n📝 Recent commits since last tag:"
+    recent_commits.each { |commit| puts "  - #{commit}" }
+    puts "\n💡 Consider updating CHANGELOG.md with meaningful changes before committing."
+  end
+end
+
+# Parse command line arguments
+bump_type = :patch
+
+case ARGV[0]
+when "--help", "-h"
+  usage
+  exit 0
+when "--major"
+  bump_type = :major
+when "--minor"
+  bump_type = :minor
+when "--patch", nil
+  bump_type = :patch
+else
+  puts "Error: Unknown option '#{ARGV[0]}'"
+  puts
+  usage
+  exit 1
+end
+
+# Get current version
+current_version = Observable::VERSION
+puts "Current version: #{current_version}"
+
+# Calculate new version
+new_major, new_minor, new_patch = bump_version(current_version, bump_type)
+unless new_major
+  puts "Error: Could not parse current version '#{current_version}'"
+  exit 1
+end
+
+new_version = format_version(new_major, new_minor, new_patch)
+puts "New version: #{new_version} (#{bump_type} bump)"
+
+# Confirm the change
+print "Proceed with version bump? [y/N]: "
+response = STDIN.gets.strip.downcase
+
+unless response == 'y' || response == 'yes'
+  puts "Version bump cancelled."
+  exit 0
+end
+
+# Update files
+update_version_file(new_version)
+update_changelog(new_version)
+
+# Suggest changelog review
+suggest_changelog_updates(new_version)
+
+puts "\n✅ Version bumped successfully!"
+puts "Next steps:"
+puts "  1. Review the auto-generated CHANGELOG.md entries"
+puts "  2. Commit the changes: git add -A && git commit -m 'chore: bump version to #{new_version}'"
+puts "  3. Push to trigger release: git push origin main"

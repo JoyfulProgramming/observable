@@ -1,0 +1,99 @@
+name: Release Gem
+
+on:
+  workflow_run:
+    workflows: ["Test"]
+    types:
+      - completed
+    branches:
+      - main
+
+jobs:
+  check-version:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    outputs:
+      version-changed: ${{ steps.version-check.outputs.changed }}
+      version: ${{ steps.version-check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      
+      - name: Check if version changed in latest commit
+        id: version-check
+        run: |
+          # Get the version from the current commit
+          CURRENT_VERSION=$(grep -E 'VERSION = ".*"' lib/observable/version.rb | sed -E 's/.*VERSION = "(.*)".*/\1/')
+          echo "Current version: $CURRENT_VERSION"
+          
+          # Get the version from the previous commit
+          git checkout HEAD~1
+          PREVIOUS_VERSION=$(grep -E 'VERSION = ".*"' lib/observable/version.rb | sed -E 's/.*VERSION = "(.*)".*/\1/')
+          echo "Previous version: $PREVIOUS_VERSION"
+          
+          # Go back to current commit
+          git checkout -
+          
+          # Check if version changed
+          if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
+            echo "Version changed from $PREVIOUS_VERSION to $CURRENT_VERSION"
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "Version unchanged"
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+  release:
+    needs: check-version
+    if: needs.check-version.outputs.version-changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4.0'
+          bundler-cache: true
+      
+      - name: Configure gem credentials
+        run: |
+          mkdir -p ~/.gem
+          cat << EOF > ~/.gem/credentials
+          ---
+          :rubygems_api_key: ${{ secrets.RUBYGEMS_API_KEY }}
+          EOF
+          chmod 600 ~/.gem/credentials
+      
+      - name: Build gem
+        run: gem build observable.gemspec
+      
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.check-version.outputs.version }}
+        run: |
+          # Create git tag
+          git tag "v$VERSION"
+          git push origin "v$VERSION"
+          
+          # Extract changelog for this version
+          CHANGELOG=$(awk "/## \[$VERSION\]/ {flag=1; next} /## \[/ {flag=0} flag" CHANGELOG.md | sed '/^$/d')
+          
+          # Create GitHub release
+          gh release create "v$VERSION" \
+            --title "Release v$VERSION" \
+            --notes "$CHANGELOG" \
+            observable-$VERSION.gem
+      
+      - name: Publish to RubyGems
+        env:
+          VERSION: ${{ needs.check-version.outputs.version }}
+        run: |
+          gem push observable-$VERSION.gem
