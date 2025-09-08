@@ -37,6 +37,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "dry-struct", "~> 1.4"
 
   # Development dependencies
+  spec.add_development_dependency "bump", "~> 0.10"
   spec.add_development_dependency "minitest", "~> 5.14"
   spec.add_development_dependency "opentelemetry-exporter-otlp", "~> 0.30"
   spec.add_development_dependency "rake", "~> 13.0"
