@@ -40,6 +40,15 @@ jobs:
             echo "Version changed from $PREVIOUS_VERSION to $CURRENT_VERSION"
             echo "changed=true" >> $GITHUB_OUTPUT
             echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+            
+            # Check if this is a pre-release version
+            if [[ "$CURRENT_VERSION" =~ -[a-zA-Z] ]]; then
+              echo "is_prerelease=true" >> $GITHUB_OUTPUT
+              echo "This is a pre-release version"
+            else
+              echo "is_prerelease=false" >> $GITHUB_OUTPUT
+              echo "This is a stable release version"
+            fi
           else
             echo "Version unchanged"
             echo "changed=false" >> $GITHUB_OUTPUT
@@ -72,12 +81,22 @@ jobs:
           chmod 600 ~/.gem/credentials
       
       - name: Build gem
-        run: gem build observable.gemspec
+        env:
+          VERSION: ${{ needs.check-version.outputs.version }}
+          IS_PRERELEASE: ${{ needs.check-version.outputs.is_prerelease }}
+        run: |
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            echo "Building pre-release gem: $VERSION"
+          else
+            echo "Building stable release gem: $VERSION"
+          fi
+          gem build observable.gemspec
       
       - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ needs.check-version.outputs.version }}
+          IS_PRERELEASE: ${{ needs.check-version.outputs.is_prerelease }}
         run: |
           # Create git tag
           git tag "v$VERSION"
@@ -86,14 +105,33 @@ jobs:
           # Extract changelog for this version
           CHANGELOG=$(awk "/## \[$VERSION\]/ {flag=1; next} /## \[/ {flag=0} flag" CHANGELOG.md | sed '/^$/d')
           
+          # Determine release title and type
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            RELEASE_TITLE="Pre-release v$VERSION"
+            PRERELEASE_FLAG="--prerelease"
+            echo "Creating pre-release: $VERSION"
+          else
+            RELEASE_TITLE="Release v$VERSION"
+            PRERELEASE_FLAG=""
+            echo "Creating stable release: $VERSION"
+          fi
+          
           # Create GitHub release
           gh release create "v$VERSION" \
-            --title "Release v$VERSION" \
+            --title "$RELEASE_TITLE" \
             --notes "$CHANGELOG" \
+            $PRERELEASE_FLAG \
             observable-$VERSION.gem
       
       - name: Publish to RubyGems
         env:
           VERSION: ${{ needs.check-version.outputs.version }}
+          IS_PRERELEASE: ${{ needs.check-version.outputs.is_prerelease }}
         run: |
-          gem push observable-$VERSION.gem
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            echo "Publishing pre-release to RubyGems: $VERSION"
+            gem push observable-$VERSION.gem
+          else
+            echo "Publishing stable release to RubyGems: $VERSION"
+            gem push observable-$VERSION.gem
+          fi
