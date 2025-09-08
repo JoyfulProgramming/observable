@@ -134,15 +134,4 @@ jobs:
         env:
           VERSION: ${{ needs.check-version.outputs.version }}
           IS_PRERELEASE: ${{ needs.check-version.outputs.is-prerelease }}
-        run: |
-          # Find the actual gem file
-          GEM_FILE=$(ls *.gem | head -1)
-          echo "Publishing gem file: $GEM_FILE"
-          
-          if [ "$IS_PRERELEASE" = "true" ]; then
-            echo "Publishing pre-release to RubyGems: $VERSION"
-            gem push "$GEM_FILE"
-          else
-            echo "Publishing stable release to RubyGems: $VERSION"
-            gem push "$GEM_FILE"
-          fi
+        run: bundle exec rake release
