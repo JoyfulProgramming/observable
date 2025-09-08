@@ -3,3 +3,5 @@
 ruby_version: 3.4
 fix: true
 parallel: true
+ignore:
+  - Gemfile.lock
