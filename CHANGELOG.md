@@ -3,6 +3,16 @@
 
 
 
+
+## [0.1.4] - 2025-09-08
+
+### Changed
+- Update version bumping logic in bump script
+- v0.1.3-beta
+- Update gem build process and release script
+- v0.1.2-beta
+
+
 ## [0.1.2-beta] - 2025-09-08
 
 ### Changed
