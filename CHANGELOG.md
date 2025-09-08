@@ -1,6 +1,19 @@
 ## [Unreleased]
 
 
+
+## [0.1.2-alpha] - 2025-09-08
+
+### Added
+- Add support for bumping alpha and beta pre-releases
+
+### Changed
+- Update version bumping logic for bump gem
+- Delegate all version bumping to bump gem
+- Extract configuration into class
+- Update gemspec and test setup for OTLP exporter
+
+
 ## [0.1.2-alpha] - 2025-09-08
 
 ### Added

@@ -19,10 +19,10 @@ def usage
     
     Examples:
       bin/bump           # Bump patch version
+      bin/bump --pre     # Bump pre-release version
       bin/bump --patch   # Bump patch version
       bin/bump --minor   # Bump minor version
       bin/bump --major   # Bump major version
-      bin/bump --pre     # Bump pre-release version
   USAGE
 end
 
@@ -243,5 +243,5 @@ suggest_changelog_updates(new_version)
 puts "\n✅ Version bumped successfully!"
 puts "Next steps:"
 puts "  1. Review the auto-generated CHANGELOG.md entries"
-puts "  2. Commit the changes: git add -A && git commit -m 'chore: bump version to #{new_version}'"
+puts "  2. Commit the changes: bin/commit"
 puts "  3. Push to trigger release: git push origin main"
