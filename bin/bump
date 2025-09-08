@@ -28,7 +28,7 @@ end
 
 def bump_version_with_gem(bump_type)
   # Delegate to the bump gem for all version bumping
-  result = Bump::Bump.run(bump_type.to_s, commit: true, tag: false, bundle: true)
+  result = Bump::Bump.run(bump_type.to_s, commit: false, tag: false, bundle: true)
   
   # The bump gem returns an array with [version, exit_code], we want just the version
   result.is_a?(Array) ? result[0] : result
@@ -212,11 +212,9 @@ else
   exit 1
 end
 
-# Get current version
 current_version = Observable::VERSION
 puts "Current version: #{current_version}"
 
-# Calculate new version using bump gem
 begin
   new_version = bump_version_with_gem(bump_type)
   puts "New version: #{new_version} (#{bump_type} bump)"
@@ -225,19 +223,7 @@ rescue => e
   exit 1
 end
 
-# Confirm the change
-print "Proceed with version bump? [y/N]: "
-response = STDIN.gets.strip.downcase
-
-unless response == 'y' || response == 'yes'
-  puts "Version bump cancelled."
-  exit 0
-end
-
-# Update changelog
 update_changelog(new_version)
-
-# Suggest changelog review
 suggest_changelog_updates(new_version)
 
 puts "\n✅ Version bumped successfully!"
