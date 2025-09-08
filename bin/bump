@@ -7,7 +7,7 @@ require_relative "../lib/observable/version"
 
 def usage
   puts <<~USAGE
-    Usage: bin/bump [--major|--minor|--patch|--alpha|--beta]
+    Usage: bin/bump [--major|--minor|--patch|--pre]
     
     Bumps the version in lib/observable/version.rb and updates CHANGELOG.md
     
@@ -15,74 +15,23 @@ def usage
       --patch (default): Increment patch version (0.1.1 -> 0.1.2)
       --minor:           Increment minor version (0.1.1 -> 0.2.0)
       --major:           Increment major version (0.1.1 -> 1.0.0)
-      --alpha:           Increment alpha pre-release (0.1.1 -> 0.1.2-alpha.1)
-      --beta:            Increment beta pre-release (0.1.1 -> 0.1.2-beta.1)
+      --pre:             Increment pre-release version (0.1.1 -> 0.1.2-alpha)
     
     Examples:
       bin/bump           # Bump patch version
       bin/bump --patch   # Bump patch version
       bin/bump --minor   # Bump minor version
       bin/bump --major   # Bump major version
-      bin/bump --alpha   # Bump alpha pre-release
-      bin/bump --beta    # Bump beta pre-release
+      bin/bump --pre     # Bump pre-release version
   USAGE
 end
 
 def bump_version_with_gem(bump_type)
-  # Use the bump gem to handle version bumping
-  result = case bump_type
-  when :major
-    Bump::Bump.run("major", commit: true, tag: false, bundle: true)
-  when :minor
-    Bump::Bump.run("minor", commit: true, tag: false, bundle: true)
-  when :patch
-    Bump::Bump.run("patch", commit: true, tag: false, bundle: true)
-  when :alpha
-    # For alpha, we need to create a pre-release version
-    current_version = Observable::VERSION
-    alpha_version = create_pre_release_version(current_version, "alpha")
-    system("bundle exec bump set #{alpha_version} --no-commit --no-bundle")
-    alpha_version
-  when :beta
-    # For beta, we need to create a pre-release version
-    current_version = Observable::VERSION
-    beta_version = create_pre_release_version(current_version, "beta")
-    system("bundle exec bump set #{beta_version} --no-commit --no-bundle")
-    beta_version
-  else
-    raise "Invalid bump type: #{bump_type}"
-  end
+  # Delegate to the bump gem for all version bumping
+  result = Bump::Bump.run(bump_type.to_s, commit: false, tag: false, bundle: false)
   
   # The bump gem returns an array with [version, exit_code], we want just the version
-  # For alpha and beta, we return the version directly
-  if bump_type == :alpha || bump_type == :beta
-    result
-  else
-    result.is_a?(Array) ? result[0] : result
-  end
-end
-
-def create_pre_release_version(current_version, pre_type)
-  # Parse current version and create pre-release version
-  # Handle versions like: 1.0.0, 1.0.0-alpha.1, 1.0.0-alpha.1.1.1
-  match = current_version.match(/(\d+)\.(\d+)\.(\d+)(?:-(.+))?/)
-  return nil unless match
-
-  major, minor, patch, pre_suffix = match[1..4]
-  
-  if pre_suffix && pre_suffix.start_with?("#{pre_type}.")
-    # Increment existing pre-release number
-    # Extract the number part after the pre_type
-    number_part = pre_suffix.sub("#{pre_type}.", "")
-    # Split by dots and increment the last number
-    parts = number_part.split(".")
-    last_number = parts.last.to_i + 1
-    parts[-1] = last_number.to_s
-    "#{major}.#{minor}.#{patch}-#{pre_type}.#{parts.join('.')}"
-  else
-    # Create new pre-release version
-    "#{major}.#{minor}.#{patch}-#{pre_type}.1"
-  end
+  result.is_a?(Array) ? result[0] : result
 end
 
 def update_changelog(new_version)
@@ -254,10 +203,8 @@ when "--minor"
   bump_type = :minor
 when "--patch", nil
   bump_type = :patch
-when "--alpha"
-  bump_type = :alpha
-when "--beta"
-  bump_type = :beta
+when "--pre"
+  bump_type = :pre
 else
   puts "Error: Unknown option '#{ARGV[0]}'"
   puts
