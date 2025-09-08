@@ -1,12 +1,16 @@
 name: Release Gem
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Test"]
+    types:
+      - completed
     branches:
       - main
 
 jobs:
   check-version:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     outputs:
       version-changed: ${{ steps.version-check.outputs.changed }}
@@ -41,31 +45,8 @@ jobs:
             echo "changed=false" >> $GITHUB_OUTPUT
           fi
 
-  test:
-    needs: check-version
-    if: needs.check-version.outputs.version-changed == 'true'
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        ruby:
-          - '3.4.0'
-          - '3.3.0'
-          - '3.2.0'
-
-    steps:
-    - uses: actions/checkout@v4
-    - name: Set up Ruby
-      uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: ${{ matrix.ruby }}
-        bundler-cache: true
-    - name: Run tests
-      run: bin/test
-    - name: Run linter
-      run: bin/lint
-
   release:
-    needs: [check-version, test]
+    needs: check-version
     if: needs.check-version.outputs.version-changed == 'true'
     runs-on: ubuntu-latest
     permissions:
