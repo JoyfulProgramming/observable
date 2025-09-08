@@ -15,6 +15,7 @@ jobs:
     outputs:
       version-changed: ${{ steps.version-check.outputs.changed }}
       version: ${{ steps.version-check.outputs.version }}
+      is-prerelease: ${{ steps.version-check.outputs.is_prerelease }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -83,7 +84,7 @@ jobs:
       - name: Build gem
         env:
           VERSION: ${{ needs.check-version.outputs.version }}
-          IS_PRERELEASE: ${{ needs.check-version.outputs.is_prerelease }}
+          IS_PRERELEASE: ${{ needs.check-version.outputs.is-prerelease }}
         run: |
           if [ "$IS_PRERELEASE" = "true" ]; then
             echo "Building pre-release gem: $VERSION"
@@ -91,12 +92,14 @@ jobs:
             echo "Building stable release gem: $VERSION"
           fi
           gem build observable.gemspec
+          echo "Built gem file:"
+          ls -la *.gem
       
       - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ needs.check-version.outputs.version }}
-          IS_PRERELEASE: ${{ needs.check-version.outputs.is_prerelease }}
+          IS_PRERELEASE: ${{ needs.check-version.outputs.is-prerelease }}
         run: |
           # Create git tag
           git tag "v$VERSION"
@@ -116,22 +119,30 @@ jobs:
             echo "Creating stable release: $VERSION"
           fi
           
+          # Find the actual gem file
+          GEM_FILE=$(ls *.gem | head -1)
+          echo "Using gem file: $GEM_FILE"
+          
           # Create GitHub release
           gh release create "v$VERSION" \
             --title "$RELEASE_TITLE" \
             --notes "$CHANGELOG" \
             $PRERELEASE_FLAG \
-            observable-$VERSION.gem
+            "$GEM_FILE"
       
       - name: Publish to RubyGems
         env:
           VERSION: ${{ needs.check-version.outputs.version }}
-          IS_PRERELEASE: ${{ needs.check-version.outputs.is_prerelease }}
+          IS_PRERELEASE: ${{ needs.check-version.outputs.is-prerelease }}
         run: |
+          # Find the actual gem file
+          GEM_FILE=$(ls *.gem | head -1)
+          echo "Publishing gem file: $GEM_FILE"
+          
           if [ "$IS_PRERELEASE" = "true" ]; then
             echo "Publishing pre-release to RubyGems: $VERSION"
-            gem push observable-$VERSION.gem
+            gem push "$GEM_FILE"
           else
             echo "Publishing stable release to RubyGems: $VERSION"
-            gem push observable-$VERSION.gem
+            gem push "$GEM_FILE"
           fi
