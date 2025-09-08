@@ -1,5 +1,5 @@
 # frozen_string_literal: true
 
 module Observable
-  VERSION = "0.1.2-alpha"
+  VERSION = "0.1.2"
 end
