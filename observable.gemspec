@@ -38,6 +38,7 @@ Gem::Specification.new do |spec|
 
   # Development dependencies
   spec.add_development_dependency "minitest", "~> 5.14"
+  spec.add_development_dependency "opentelemetry-exporter-otlp", "~> 0.30"
   spec.add_development_dependency "rake", "~> 13.0"
   spec.add_development_dependency "simplecov", "~> 0.22"
   spec.add_development_dependency "standard", "~> 1.40"

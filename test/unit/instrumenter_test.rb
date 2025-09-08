@@ -246,6 +246,25 @@ class InstrumenterTest < Minitest::Test
     }), span.attrs.except("code.lineno", "code.filepath")
   end
 
+  def test_opentelemetry_setup_does_not_produce_otlp_warnings
+    # Capture logger output to check for warnings
+    logger_output = StringIO.new
+    original_logger = OpenTelemetry.logger
+    OpenTelemetry.logger = Logger.new(logger_output)
+
+    # Reconfigure OpenTelemetry to trigger the warning
+    OpenTelemetry::SDK.configure do |config|
+      config.use_all
+    end
+
+    warning_output = logger_output.string
+    OpenTelemetry.logger = original_logger
+
+    # The warning should not contain OTLP exporter messages
+    refute_match(/otlp exporter cannot be configured/, warning_output)
+    refute_match(/opentelemetry-exporter-otlp/, warning_output)
+  end
+
   def setup
     open_telemetry_exporter.reset
     super

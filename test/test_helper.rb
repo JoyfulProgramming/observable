@@ -27,6 +27,7 @@ require "support/tracing_test_helper"
 
 # Set up OpenTelemetry for testing
 require "opentelemetry/sdk"
+require "opentelemetry/exporter/otlp"
 
 # Create and configure in-memory exporter for tests
 OpenTelemetry::SDK.configure do |config|
