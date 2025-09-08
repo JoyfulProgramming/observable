@@ -67,12 +67,22 @@ def update_changelog(new_version)
   content = File.read(changelog_file)
   today = Time.now.strftime("%Y-%m-%d")
   
+  # Get commits since last tag and categorize them
+  recent_commits = get_recent_commits_since_last_tag
+  categorized_commits = categorize_commits(recent_commits)
+  
+  # Generate changelog content from commits
+  changelog_content = generate_changelog_content(categorized_commits)
+  
+  # If no commits found or no content generated, use default
+  if changelog_content.empty?
+    changelog_content = "### Changed\n- Version bump\n\n"
+  end
+  
   new_entry = <<~ENTRY
     ## [#{new_version}] - #{today}
 
-    ### Changed
-    - Version bump
-
+    #{changelog_content}
   ENTRY
   
   # Insert new version entry after "## [Unreleased]"
@@ -80,6 +90,10 @@ def update_changelog(new_version)
   
   File.write(changelog_file, updated_content)
   puts "Updated #{changelog_file} with new version entry"
+  
+  if recent_commits.any?
+    puts "📝 Generated changelog from #{recent_commits.length} commit(s) since last tag"
+  end
 end
 
 def get_recent_commits_since_last_tag
@@ -87,9 +101,109 @@ def get_recent_commits_since_last_tag
   last_tag = `git describe --tags --abbrev=0 2>/dev/null`.strip
   return [] if last_tag.empty?
   
-  # Get commits since last tag
-  commits = `git log #{last_tag}..HEAD --oneline --no-merges`.strip.split("\n")
+  # Get commits since last tag with full commit messages
+  commits = `git log #{last_tag}..HEAD --no-merges --pretty=format:"%s"`.strip.split("\n")
   commits.map(&:strip).reject(&:empty?)
+end
+
+def parse_conventional_commit(commit_message)
+  # Parse conventional commit format: type(scope): description
+  # Examples: feat: add new feature, fix(auth): resolve login issue, chore: update dependencies
+  match = commit_message.match(/^(\w+)(?:\(([^)]+)\))?: (.+)$/)
+  
+  if match
+    type = match[1].downcase
+    scope = match[2]
+    description = match[3]
+    
+    # Map conventional commit types to changelog sections
+    section = case type
+    when 'feat', 'feature'
+      'Added'
+    when 'fix', 'bugfix'
+      'Fixed'
+    when 'perf'
+      'Performance'
+    when 'refactor'
+      'Changed'
+    when 'style'
+      'Changed'
+    when 'test'
+      'Changed'
+    when 'chore'
+      'Changed'
+    when 'docs'
+      'Changed'
+    when 'ci'
+      'Changed'
+    when 'build'
+      'Changed'
+    when 'revert'
+      'Changed'
+    else
+      'Changed'
+    end
+    
+    {
+      type: type,
+      scope: scope,
+      description: description,
+      section: section,
+      formatted: scope ? "#{description} (#{scope})" : description
+    }
+  else
+    # Non-conventional commit, treat as general change
+    {
+      type: 'other',
+      scope: nil,
+      description: commit_message,
+      section: 'Changed',
+      formatted: commit_message
+    }
+  end
+end
+
+def categorize_commits(commits)
+  categorized = Hash.new { |h, k| h[k] = [] }
+  
+  commits.each do |commit|
+    parsed = parse_conventional_commit(commit)
+    categorized[parsed[:section]] << parsed[:formatted]
+  end
+  
+  categorized
+end
+
+def generate_changelog_content(categorized_commits)
+  return "" if categorized_commits.empty?
+  
+  content = ""
+  
+  # Define section order
+  section_order = ['Added', 'Fixed', 'Performance', 'Changed']
+  
+  section_order.each do |section|
+    if categorized_commits[section]&.any?
+      content += "### #{section}\n"
+      categorized_commits[section].each do |item|
+        content += "- #{item}\n"
+      end
+      content += "\n"
+    end
+  end
+  
+  # Add any remaining sections not in the predefined order
+  categorized_commits.each do |section, items|
+    unless section_order.include?(section)
+      content += "### #{section}\n"
+      items.each do |item|
+        content += "- #{item}\n"
+      end
+      content += "\n"
+    end
+  end
+  
+  content
 end
 
 def suggest_changelog_updates(new_version)
@@ -154,6 +268,6 @@ suggest_changelog_updates(new_version)
 
 puts "\n✅ Version bumped successfully!"
 puts "Next steps:"
-puts "  1. Review and update CHANGELOG.md with meaningful changes"
+puts "  1. Review the auto-generated CHANGELOG.md entries"
 puts "  2. Commit the changes: git add -A && git commit -m 'chore: bump version to #{new_version}'"
 puts "  3. Push to trigger release: git push origin main"
