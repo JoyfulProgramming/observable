@@ -24,7 +24,7 @@ class InstrumenterTest < Minitest::Test
       "code.namespace" => "InstrumenterTest",
       "code.return" => "returned value",
       "error" => false
-    }), spans.first.attrs
+    }), spans.one_and_only!.attrs
   end
 
   def test_instrument_captures_method_arguments
@@ -35,7 +35,7 @@ class InstrumenterTest < Minitest::Test
     assert_hashes_match ({
       "code.arguments.0" => "hello",
       "code.arguments.1" => 42
-    }), spans.first.attrs, match_keys: %r{code.arguments}
+    }), spans.one_and_only!.attrs, match_keys: %r{code.arguments}
   end
 
   def test_instrument_records_exceptions
@@ -49,7 +49,7 @@ class InstrumenterTest < Minitest::Test
       "error" => true,
       "error.type" => "StandardError",
       "error.message" => "error message"
-    }), spans.first.attrs, match_keys: /error/
+    }), first_span_attrs!, match_keys: /error/
   end
 
   def test_namespace_is_configurable
@@ -59,68 +59,38 @@ class InstrumenterTest < Minitest::Test
 
     assert_hashes_match ({
       "app.namespace" => "test_app"
-    }), spans.first.attrs, match_keys: "app.namespace"
+    }), first_span_attrs!, match_keys: "app.namespace"
   end
 
   def test_serializing_hash_with_no_serialization_depth_defaults_to_depth_of_2
     assume_instrumenter_with_config(serialization_depth: {}) do |instrumenter|
-      deep_hash = {
-        level_1: {
-          value: "level 1 value",
-          level_2: {
-            value: "level 2 value",
-            level_3: {
-              value: "level 3 value"
-            }
-          }
-        }
-      }
-
-      test_method_with_hash_arg(instrumenter, deep_hash)
+      test_method_with_hash_arg(instrumenter, four_deep_hash)
 
       assert_hashes_match ({
         "code.arguments.0.level_1.value" => "level 1 value",
         "code.arguments.0.level_1.level_2.value" => "level 2 value"
-      }), spans.one_and_only!.attrs, match_keys: %r{code.arguments.0}
+      }), first_span_attrs!, match_keys: %r{code.arguments.0}
     end
   end
 
   def test_serializing_hash_with_depth_of_1_limits_the_depth_of_the_hash
     assume_instrumenter_with_config(serialization_depth: {"Hash" => 1}) do |instrumenter|
-      deep_hash = {
-        level_1: {
-          value: "level 1 value",
-          level_2: {
-            value: "level 2 value"
-          }
-        }
-      }
-
-      test_method_with_hash_arg(instrumenter, deep_hash)
+      test_method_with_hash_arg(instrumenter, four_deep_hash)
 
       assert_hashes_match ({
         "code.arguments.0.level_1.value" => "level 1 value"
-      }), spans.one_and_only!.attrs, match_keys: %r{code.arguments.0}
+      }), first_span_attrs!, match_keys: %r{code.arguments.0}
     end
   end
 
   def test_serializing_hash_with_depth_of_2_limits_the_depth_of_the_hash
     assume_instrumenter_with_config(serialization_depth: {"Hash" => 2}) do |instrumenter|
-      deep_hash = {
-        level_1: {
-          value: "level 1 value",
-          level_2: {
-            value: "level 2 value"
-          }
-        }
-      }
-
-      test_method_with_hash_arg(instrumenter, deep_hash)
+      test_method_with_hash_arg(instrumenter, four_deep_hash)
 
       assert_hashes_match ({
         "code.arguments.0.level_1.value" => "level 1 value",
         "code.arguments.0.level_1.level_2.value" => "level 2 value"
-      }), spans.one_and_only!.attrs, match_keys: %r{code.arguments.0}
+      }), first_span_attrs!, match_keys: %r{code.arguments.0}
     end
   end
 
@@ -133,7 +103,7 @@ class InstrumenterTest < Minitest::Test
       assert_hashes_match ({
         "code.arguments.0.name" => "test",
         "code.arguments.0.class" => "TestCustomClass"
-      }), spans.one_and_only!.attrs, match_keys: %r{code.arguments.0}
+      }), first_span_attrs!, match_keys: %r{code.arguments.0}
     end
 
     clear_spans
@@ -145,7 +115,7 @@ class InstrumenterTest < Minitest::Test
         "code.arguments.0.name" => "test",
         "code.arguments.0.class" => "TestCustomClass",
         "code.arguments.0.data.nested.deep" => "value"
-      }), spans.one_and_only!.attrs, match_keys: %r{code.arguments.0}
+      }), first_span_attrs!, match_keys: %r{code.arguments.0}
     end
   end
 
@@ -166,7 +136,7 @@ class InstrumenterTest < Minitest::Test
         "code.arguments.0.user.name" => "john",
         "code.arguments.0.user.data.profile.age" => 30,
         "code.arguments.0.metadata.created.timestamp" => "2023-01-01"
-      }), spans.one_and_only!.attrs, match_keys: %r{code.arguments.0}
+      }), first_span_attrs!, match_keys: %r{code.arguments.0}
     end
   end
 
@@ -176,6 +146,10 @@ class InstrumenterTest < Minitest::Test
   end
 
   private
+
+  def first_span_attrs!
+    spans.one_and_only!.attrs
+  end
 
   def test_method(instrumenter)
     instrumenter.instrument(binding) do
@@ -230,6 +204,23 @@ class InstrumenterTest < Minitest::Test
 
   def clear_spans
     open_telemetry_exporter.reset
+  end
+
+  def four_deep_hash
+    {
+      level_1: {
+        value: "level 1 value",
+        level_2: {
+          value: "level 2 value",
+          level_3: {
+            value: "level 3 value",
+            level_4: {
+              value: "level 4 value"
+            }
+          }
+        }
+      }
+    }
   end
 end
 
