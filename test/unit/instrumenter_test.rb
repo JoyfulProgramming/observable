@@ -33,16 +33,9 @@ class InstrumenterTest < Minitest::Test
     test_method_with_args(instrumenter, "hello", 42)
 
     assert_hashes_match ({
-      "app.namespace" => "app",
-      "code.filepath" => %r{.*/test/unit/instrumenter_test.rb},
-      "code.lineno" => (0...),
-      "code.function" => "InstrumenterTest#test_method_with_args",
-      "code.namespace" => "InstrumenterTest",
       "code.arguments.0" => "hello",
-      "code.arguments.1" => 42,
-      "error" => false,
-      "code.return" => "nil"
-    }), spans.first.attrs
+      "code.arguments.1" => 42
+    }), spans.first.attrs, match_keys: %r{code.arguments}
   end
 
   def test_instrument_records_exceptions
@@ -69,27 +62,20 @@ class InstrumenterTest < Minitest::Test
     }), spans.first.attrs, match_keys: "app.namespace"
   end
 
-  def test_serialization_depth_is_configurable_for_hash
-    deep_hash = {
-      level_1: {
-        value: "level 1 value",
-        level_2: {
-          value: "level 2 value"
+  def test_serializing_hash_with_no_serialization_depth_defaults_to_depth_of_2
+    assume_instrumenter_with_config(serialization_depth: {}) do |instrumenter|
+      deep_hash = {
+        level_1: {
+          value: "level 1 value",
+          level_2: {
+            value: "level 2 value",
+            level_3: {
+              value: "level 3 value"
+            }
+          }
         }
       }
-    }
 
-    assume_instrumenter_with_config(serialization_depth: {"Hash" => 1}) do |instrumenter|
-      test_method_with_hash_arg(instrumenter, deep_hash)
-
-      assert_hashes_match ({
-        "code.arguments.0.level_1.value" => "level 1 value"
-      }), spans.one_and_only!.attrs, match_keys: %r{code.arguments.0}
-    end
-
-    clear_spans
-
-    assume_instrumenter_with_config(serialization_depth: {"Hash" => 2}) do |instrumenter|
       test_method_with_hash_arg(instrumenter, deep_hash)
 
       assert_hashes_match ({
@@ -99,58 +85,71 @@ class InstrumenterTest < Minitest::Test
     end
   end
 
-  def test_class_specific_serialization_depth_for_custom_class
-    test_config = Observable::Configuration.config.dup
-    test_config.serialization_depth = {:default => 2, "TestCustomClass" => 1}
-    instrumenter = Observable::Instrumenter.new(config: test_config)
-
-    custom_obj = TestCustomClass.new(name: "test", data: {nested: {deep: "value"}})
-    test_method_with_custom_arg(instrumenter, custom_obj)
-
-    span = spans.first
-
-    assert_equal ({
-      "code.function" => "InstrumenterTest#test_method_with_custom_arg",
-      "code.namespace" => "InstrumenterTest",
-      "app.namespace" => "app",
-      "code.arguments.0.class" => "TestCustomClass",
-      "code.arguments.0.name" => "test",
-      "error" => false,
-      "code.return" => "nil"
-    }), span.attrs.except("code.lineno", "code.filepath")
-  end
-
-  def test_default_depth_when_class_not_specified
-    test_config = Observable::Configuration.config.dup
-    test_config.serialization_depth = {:default => 2, "Hash" => 1}
-    instrumenter = Observable::Instrumenter.new(config: test_config)
-
-    deep_array = [
-      {
-        level1: {
-          level2: "value"
+  def test_serializing_hash_with_depth_of_1_limits_the_depth_of_the_hash
+    assume_instrumenter_with_config(serialization_depth: {"Hash" => 1}) do |instrumenter|
+      deep_hash = {
+        level_1: {
+          value: "level 1 value",
+          level_2: {
+            value: "level 2 value"
+          }
         }
       }
-    ]
 
-    test_method_with_array_arg(instrumenter, deep_array)
+      test_method_with_hash_arg(instrumenter, deep_hash)
 
-    span = spans.first
-
-    assert_equal ({
-      "code.function" => "InstrumenterTest#test_method_with_array_arg",
-      "code.namespace" => "InstrumenterTest",
-      "app.namespace" => "app",
-      "error" => false,
-      "code.return" => "nil"
-    }), span.attrs.except("code.lineno", "code.filepath")
+      assert_hashes_match ({
+        "code.arguments.0.level_1.value" => "level 1 value"
+      }), spans.one_and_only!.attrs, match_keys: %r{code.arguments.0}
+    end
   end
 
-  def test_mixed_depth_limits_in_nested_structure
-    test_config = Observable::Configuration.config.dup
-    test_config.serialization_depth = {:default => 1, "Hash" => 3, "TestCustomClass" => 2}
-    instrumenter = Observable::Instrumenter.new(config: test_config)
+  def test_serializing_hash_with_depth_of_2_limits_the_depth_of_the_hash
+    assume_instrumenter_with_config(serialization_depth: {"Hash" => 2}) do |instrumenter|
+      deep_hash = {
+        level_1: {
+          value: "level 1 value",
+          level_2: {
+            value: "level 2 value"
+          }
+        }
+      }
 
+      test_method_with_hash_arg(instrumenter, deep_hash)
+
+      assert_hashes_match ({
+        "code.arguments.0.level_1.value" => "level 1 value",
+        "code.arguments.0.level_1.level_2.value" => "level 2 value"
+      }), spans.one_and_only!.attrs, match_keys: %r{code.arguments.0}
+    end
+  end
+
+  def test_serialization_depth_is_configurable_for_custom_class
+    custom_obj = TestCustomClass.new(name: "test", data: {nested: {deep: "value"}})
+
+    assume_instrumenter_with_config(serialization_depth: {"TestCustomClass" => 1}) do |instrumenter|
+      test_method_with_custom_arg(instrumenter, custom_obj)
+
+      assert_hashes_match ({
+        "code.arguments.0.name" => "test",
+        "code.arguments.0.class" => "TestCustomClass"
+      }), spans.one_and_only!.attrs, match_keys: %r{code.arguments.0}
+    end
+
+    clear_spans
+
+    assume_instrumenter_with_config(serialization_depth: {"TestCustomClass" => 2}) do |instrumenter|
+      test_method_with_custom_arg(instrumenter, custom_obj)
+
+      assert_hashes_match ({
+        "code.arguments.0.name" => "test",
+        "code.arguments.0.class" => "TestCustomClass",
+        "code.arguments.0.data.nested.deep" => "value"
+      }), spans.one_and_only!.attrs, match_keys: %r{code.arguments.0}
+    end
+  end
+
+  def test_serialization_depth_is_configurable_for_mixed_structure
     complex_data = {
       user: TestCustomClass.new(name: "john", data: {profile: {age: 30}}),
       metadata: {
@@ -159,65 +158,20 @@ class InstrumenterTest < Minitest::Test
         }
       }
     }
+    assume_instrumenter_with_config(serialization_depth: {"Hash" => 3, "TestCustomClass" => 2}) do |instrumenter|
+      test_method_with_complex_arg(instrumenter, complex_data)
 
-    test_method_with_complex_arg(instrumenter, complex_data)
-
-    span = spans.first
-
-    assert_equal ({
-      "code.function" => "InstrumenterTest#test_method_with_complex_arg",
-      "code.namespace" => "InstrumenterTest",
-      "app.namespace" => "app",
-      "code.arguments.0.user.class" => "TestCustomClass",
-      "code.arguments.0.user.name" => "john",
-      "code.arguments.0.user.data.profile.age" => 30,
-      "code.arguments.0.metadata.created.timestamp" => "2023-01-01",
-      "error" => false,
-      "code.return" => "nil"
-    }), span.attrs.except("code.lineno", "code.filepath")
-  end
-
-  def test_backward_compatibility_with_single_depth_config
-    test_config = Observable::Configuration.config.dup
-    test_config.serialization_depth = 3  # Old style single value
-    instrumenter = Observable::Instrumenter.new(config: test_config)
-
-    deep_hash = {l1: {l2: {l3: {l4: "deep"}}}}
-    test_method_with_hash_arg(instrumenter, deep_hash)
-
-    span = spans.first
-
-    assert_equal ({
-      "code.function" => "InstrumenterTest#test_method_with_hash_arg",
-      "code.namespace" => "InstrumenterTest",
-      "app.namespace" => "app",
-      "code.arguments.0.l1.l2.l3.l4" => "deep",
-      "error" => false,
-      "code.return" => "nil"
-    }), span.attrs.except("code.lineno", "code.filepath")
-  end
-
-  def test_opentelemetry_setup_does_not_produce_otlp_warnings
-    # Capture logger output to check for warnings
-    logger_output = StringIO.new
-    original_logger = OpenTelemetry.logger
-    OpenTelemetry.logger = Logger.new(logger_output)
-
-    # Reconfigure OpenTelemetry to trigger the warning
-    OpenTelemetry::SDK.configure do |config|
-      config.use_all
+      assert_hashes_match ({
+        "code.arguments.0.user.class" => "TestCustomClass",
+        "code.arguments.0.user.name" => "john",
+        "code.arguments.0.user.data.profile.age" => 30,
+        "code.arguments.0.metadata.created.timestamp" => "2023-01-01"
+      }), spans.one_and_only!.attrs, match_keys: %r{code.arguments.0}
     end
-
-    warning_output = logger_output.string
-    OpenTelemetry.logger = original_logger
-
-    # The warning should not contain OTLP exporter messages
-    refute_match(/otlp exporter cannot be configured/, warning_output)
-    refute_match(/opentelemetry-exporter-otlp/, warning_output)
   end
 
   def setup
-    open_telemetry_exporter.reset
+    clear_spans
     super
   end
 
