@@ -4,7 +4,7 @@ class InstrumenterTest < Minitest::Test
   make_my_diffs_pretty!
   include TracingTestHelper
 
-  def test_instrument_method_executes_block
+  def test_instrument_records_details_of_method_call
     instrumenter = Observable::Instrumenter.new
     side_effect = nil
 
@@ -15,40 +15,17 @@ class InstrumenterTest < Minitest::Test
 
     assert_equal "executed", side_effect
     assert_equal "returned value", return_value
-  end
-
-  def test_instrument_captures_calling_method_name
-    instrumenter = Observable::Instrumenter.new
-
-    calling_method_name = nil
-    instrumenter.instrument do
-      calling_method_name = instrumenter.last_captured_method_name
-    end
-
-    assert_equal "test_instrument_captures_calling_method_name", calling_method_name
-  end
-
-  def test_instrument_captures_calling_class_namespace
-    instrumenter = Observable::Instrumenter.new
-
-    calling_namespace = nil
-    instrumenter.instrument do
-      calling_namespace = instrumenter.last_captured_namespace
-    end
-
-    assert_equal "InstrumenterTest", calling_namespace
-  end
-
-  def test_instrument_creates_opentelemetry_span
-    instrumenter = Observable::Instrumenter.new
-
-    instrumenter.instrument do
-      # Some work
-    end
-
     assert_equal 1, spans.count
-    span = spans.first
-    assert_equal "InstrumenterTest#test_instrument_creates_opentelemetry_span", span.name
+    assert_equal "InstrumenterTest#test_instrument_records_details_of_method_call", spans.first.name
+    assert_equal ({
+      "app.namespace" => "app",
+      "code.filepath" => __FILE__,
+      "code.function" => "InstrumenterTest#test_instrument_records_details_of_method_call",
+      "code.lineno" => 11,
+      "code.namespace" => "InstrumenterTest",
+      "code.return" => "returned value",
+      "error" => false
+    }), spans.first.attrs
   end
 
   def test_instrument_captures_method_arguments
@@ -66,7 +43,7 @@ class InstrumenterTest < Minitest::Test
       "code.arguments.1" => 42,
       "error" => false,
       "code.return" => "nil"
-    }), span.attrs.except("code.lineno", "code.filepath")
+    }), without_code_attributes(span.attrs)
   end
 
   def test_instrument_tracks_return_values
@@ -300,10 +277,16 @@ class InstrumenterTest < Minitest::Test
     end
   end
 
+  private
+
   def method_that_raises_exception(instrumenter, message)
     instrumenter.instrument(binding) do
       raise StandardError, message
     end
+  end
+
+  def without_code_attributes(attrs)
+    attrs.except("code.lineno", "code.filepath")
   end
 end
 

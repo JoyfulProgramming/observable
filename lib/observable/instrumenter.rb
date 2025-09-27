@@ -3,7 +3,7 @@ require_relative "configuration"
 
 module Observable
   class Instrumenter
-    attr_reader :last_captured_method_name, :last_captured_namespace, :config
+    attr_reader :last_captured_namespace, :config
 
     def initialize(tracer: nil, config: nil)
       @config = config || Configuration.config
