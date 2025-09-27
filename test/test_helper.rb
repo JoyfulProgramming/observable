@@ -12,4 +12,5 @@ require "support/opentelemetry"
 class Minitest::Test
   include ReadableDiffsHelper
   include HashMatcher
+  include TracingTestHelper
 end

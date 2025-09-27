@@ -1,10 +1,8 @@
 require "test_helper"
 
 class InstrumenterTest < Minitest::Test
-  include TracingTestHelper
-
   def test_instrument_records_details_of_method_call
-    instrumenter = Observable::Instrumenter.new
+    instrumenter = Observable.instrumenter
     side_effect = nil
 
     return_value = instrumenter.instrument do
@@ -28,7 +26,7 @@ class InstrumenterTest < Minitest::Test
   end
 
   def test_instrument_captures_method_arguments
-    instrumenter = Observable::Instrumenter.new
+    instrumenter = Observable.instrumenter
 
     test_method_with_args(instrumenter, "hello", 42)
 
@@ -39,7 +37,7 @@ class InstrumenterTest < Minitest::Test
   end
 
   def test_instrument_records_exceptions
-    instrumenter = Observable::Instrumenter.new
+    instrumenter = Observable.instrumenter
 
     assert_raises(StandardError) do
       method_that_raises_exception(instrumenter, "error message")
@@ -197,7 +195,7 @@ class InstrumenterTest < Minitest::Test
     test_config = Observable::Configuration.config.dup
     test_config.app_namespace = app_namespace if app_namespace
     test_config.serialization_depth = serialization_depth if serialization_depth
-    instrumenter = Observable::Instrumenter.new(config: test_config)
+    instrumenter = Observable.instrumenter(config: test_config)
     yield instrumenter
     instrumenter
   end
