@@ -11,15 +11,28 @@ module Observable
       Observable::Persistence::SpanRepo.new(spans: finished_spans)
     end
 
-    def finished_spans
-      open_telemetry_exporter.finished_spans
+    def setup_observable_data!
+      @open_telemetry_exporter = setup_opentelemetry_for_tests
     end
 
-    def open_telemetry_exporter
-      @open_telemetry_exporter ||= setup_opentelemetry_for_tests
+    def teardown_observable_data!
+      reset_observable_data!
+      @open_telemetry_exporter = nil
+    end
+
+    def reset_observable_data!
+      raise NoOpenTelemetryExporter if @open_telemetry_exporter.nil?
+
+      @open_telemetry_exporter.reset
     end
 
     private
+
+    def finished_spans
+      raise NoOpenTelemetryExporter if @open_telemetry_exporter.nil?
+
+      @open_telemetry_exporter.finished_spans
+    end
 
     def setup_opentelemetry_for_tests
       require "opentelemetry/sdk"

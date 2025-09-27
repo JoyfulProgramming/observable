@@ -104,7 +104,7 @@ class InstrumenterTest < Minitest::Test
       }), first_span_attrs!, match_keys: %r{code.arguments.0}
     end
 
-    clear_spans
+    reset_observable_data!
 
     assume_instrumenter_with_config(serialization_depth: {"TestCustomClass" => 2}) do |instrumenter|
       test_method_with_custom_arg(instrumenter, custom_obj)
@@ -139,8 +139,13 @@ class InstrumenterTest < Minitest::Test
   end
 
   def setup
-    clear_spans
     super
+    setup_observable_data!
+  end
+
+  def teardown
+    super
+    teardown_observable_data!
   end
 
   private
@@ -198,10 +203,6 @@ class InstrumenterTest < Minitest::Test
     instrumenter = Observable.instrumenter(config: test_config)
     yield instrumenter
     instrumenter
-  end
-
-  def clear_spans
-    open_telemetry_exporter.reset
   end
 
   def four_deep_hash
