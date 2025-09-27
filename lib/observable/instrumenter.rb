@@ -18,7 +18,6 @@ module Observable
 
     private
 
-    # Extracts all information about the calling method in one place
     def extract_caller_information
       caller_location = find_caller_location
       namespace = extract_actual_class_name
@@ -115,6 +114,9 @@ module Observable
           span.set_attribute("error", true)
           span.set_attribute("error.type", e.class.name)
           span.set_attribute("error.message", e.message)
+          span.set_attribute("error.stacktrace", e.full_message(highlight: false))
+          latest_backtrace_line = e.backtrace.find { |line| line.include?(caller_info.filepath) }
+          span.set_attribute("code.lineno", latest_backtrace_line.split(":")[1].to_i) if latest_backtrace_line
           span.status = OpenTelemetry::Trace::Status.error(e.message)
           raise
         end

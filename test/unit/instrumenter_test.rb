@@ -1,34 +1,34 @@
 require "test_helper"
 
 class InstrumenterTest < Minitest::Test
+  include MethodHelpers
+
   def test_instrument_records_details_of_method_call
-    instrumenter = Observable.instrumenter
-    side_effect = nil
+    returned_value = method_with_return_value(
+      Observable.instrumenter,
+      return_value: "returned value"
+    )
 
-    return_value = instrumenter.instrument do
-      side_effect = "executed"
-      "returned value"
-    end
-
-    assert_equal "executed", side_effect
-    assert_equal "returned value", return_value
+    assert_equal "returned value", returned_value
     assert_equal 1, spans.count
-    assert_equal "InstrumenterTest#test_instrument_records_details_of_method_call", spans.first.name
+    assert_equal "MethodHelpers#method_with_return_value", spans.first.name
     assert_hashes_match ({
       "app.namespace" => "app",
-      "code.filepath" => %r{.*/test/unit/instrumenter_test.rb},
-      "code.lineno" => (0...),
-      "code.function" => "InstrumenterTest#test_instrument_records_details_of_method_call",
-      "code.namespace" => "InstrumenterTest",
+      "code.filepath" => %r{.*/test/support/method_helpers.rb},
+      "code.lineno" => 48,
+      "code.function" => "MethodHelpers#method_with_return_value",
+      "code.namespace" => "MethodHelpers",
       "code.return" => "returned value",
       "error" => false
     }), spans.one_and_only!.attrs
   end
 
   def test_instrument_captures_method_arguments
-    instrumenter = Observable.instrumenter
-
-    test_method_with_args(instrumenter, "hello", 42)
+    method_with_args(
+      Observable.instrumenter,
+      "hello",
+      42
+    )
 
     assert_hashes_match ({
       "code.arguments.0" => "hello",
@@ -37,22 +37,29 @@ class InstrumenterTest < Minitest::Test
   end
 
   def test_instrument_records_exceptions
-    instrumenter = Observable.instrumenter
-
     assert_raises(StandardError) do
-      method_that_raises_exception(instrumenter, "error message")
+      method_that_raises_exception(
+        Observable.instrumenter,
+        "error message"
+      )
     end
 
     assert_hashes_match ({
+      "code.function" => "MethodHelpers#method_that_raises_exception",
+      "code.namespace" => "InstrumenterTest",
+      "code.filepath" => %r{.*/test/support/method_helpers.rb},
+      "code.lineno" => 43,
+      "code.arguments.0" => "error message",
       "error" => true,
       "error.type" => "StandardError",
-      "error.message" => "error message"
-    }), first_span_attrs!, match_keys: /error/
+      "error.message" => "error message",
+      "error.stacktrace" => /.*/
+    }), first_span_attrs!, match_keys: /error|code/
   end
 
   def test_namespace_is_configurable
     assume_instrumenter_with_config(app_namespace: "test_app") do |instrumenter|
-      test_method(instrumenter)
+      method_with_no_args(instrumenter)
     end
 
     assert_hashes_match ({
@@ -62,7 +69,7 @@ class InstrumenterTest < Minitest::Test
 
   def test_serializing_hash_with_no_serialization_depth_defaults_to_depth_of_2
     assume_instrumenter_with_config(serialization_depth: {}) do |instrumenter|
-      test_method_with_hash_arg(instrumenter, four_deep_hash)
+      method_with_hash_arg(instrumenter, four_deep_hash)
 
       assert_hashes_match ({
         "code.arguments.0.level_1.value" => "level 1 value",
@@ -73,7 +80,7 @@ class InstrumenterTest < Minitest::Test
 
   def test_serializing_hash_with_depth_of_1_limits_the_depth_of_the_hash
     assume_instrumenter_with_config(serialization_depth: {"Hash" => 1}) do |instrumenter|
-      test_method_with_hash_arg(instrumenter, four_deep_hash)
+      method_with_hash_arg(instrumenter, four_deep_hash)
 
       assert_hashes_match ({
         "code.arguments.0.level_1.value" => "level 1 value"
@@ -83,7 +90,7 @@ class InstrumenterTest < Minitest::Test
 
   def test_serializing_hash_with_depth_of_2_limits_the_depth_of_the_hash
     assume_instrumenter_with_config(serialization_depth: {"Hash" => 2}) do |instrumenter|
-      test_method_with_hash_arg(instrumenter, four_deep_hash)
+      method_with_hash_arg(instrumenter, four_deep_hash)
 
       assert_hashes_match ({
         "code.arguments.0.level_1.value" => "level 1 value",
@@ -96,7 +103,7 @@ class InstrumenterTest < Minitest::Test
     custom_obj = TestCustomClass.new(name: "test", data: {nested: {deep: "value"}})
 
     assume_instrumenter_with_config(serialization_depth: {"TestCustomClass" => 1}) do |instrumenter|
-      test_method_with_custom_arg(instrumenter, custom_obj)
+      method_with_custom_arg(instrumenter, custom_obj)
 
       assert_hashes_match ({
         "code.arguments.0.name" => "test",
@@ -107,7 +114,7 @@ class InstrumenterTest < Minitest::Test
     reset_observable_data!
 
     assume_instrumenter_with_config(serialization_depth: {"TestCustomClass" => 2}) do |instrumenter|
-      test_method_with_custom_arg(instrumenter, custom_obj)
+      method_with_custom_arg(instrumenter, custom_obj)
 
       assert_hashes_match ({
         "code.arguments.0.name" => "test",
@@ -127,7 +134,7 @@ class InstrumenterTest < Minitest::Test
       }
     }
     assume_instrumenter_with_config(serialization_depth: {"Hash" => 3, "TestCustomClass" => 2}) do |instrumenter|
-      test_method_with_complex_arg(instrumenter, complex_data)
+      method_with_complex_arg(instrumenter, complex_data)
 
       assert_hashes_match ({
         "code.arguments.0.user.class" => "TestCustomClass",
@@ -152,48 +159,6 @@ class InstrumenterTest < Minitest::Test
 
   def first_span_attrs!
     spans.one_and_only!.attrs
-  end
-
-  def test_method(instrumenter)
-    instrumenter.instrument(binding) do
-      # Some work
-    end
-  end
-
-  def test_method_with_args(instrumenter, arg1, arg2)
-    instrumenter.instrument(binding) do
-      # Some work with args
-    end
-  end
-
-  def test_method_with_hash_arg(instrumenter, hash_arg)
-    instrumenter.instrument(binding) do
-      # Some work with hash
-    end
-  end
-
-  def test_method_with_custom_arg(instrumenter, custom_arg)
-    instrumenter.instrument(binding) do
-      # Some work with custom object
-    end
-  end
-
-  def test_method_with_array_arg(instrumenter, array_arg)
-    instrumenter.instrument(binding) do
-      # Some work with array
-    end
-  end
-
-  def test_method_with_complex_arg(instrumenter, complex_arg)
-    instrumenter.instrument(binding) do
-      # Some work with complex data
-    end
-  end
-
-  def method_that_raises_exception(instrumenter, message)
-    instrumenter.instrument(binding) do
-      raise StandardError, message
-    end
   end
 
   def assume_instrumenter_with_config(app_namespace: nil, serialization_depth: nil)

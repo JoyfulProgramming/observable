@@ -8,6 +8,7 @@ require "observable/tracing_test_helper"
 require "support/readable_diffs_helper"
 require "support/hash_matcher"
 require "support/opentelemetry"
+require "support/method_helpers"
 require "stringio"
 
 class Minitest::Test
