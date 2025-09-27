@@ -74,6 +74,20 @@ module Observable
           object.attrs.transform_keys(&:to_s).slice(*query.transform_keys(&:to_s).keys) == query.transform_keys(&:to_s)
         end
       end
+
+      def ai
+        grouped_spans = group_by(&:trace_id)
+        output = []
+
+        grouped_spans.each do |trace_id, spans|
+          output << "Trace ID: #{trace_id}"
+          spans.each do |span|
+            output << span.ai
+          end
+        end
+
+        output.join("\n")
+      end
     end
   end
 end

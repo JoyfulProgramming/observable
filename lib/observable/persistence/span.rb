@@ -50,6 +50,19 @@ module Observable
       def inspect
         to_h
       end
+
+      def ai
+        output = []
+        output << "  Span: #{name}"
+        output << "    ID: #{id}"
+        output << "    Kind: #{kind}"
+        output << "    Attributes:"
+        attrs.each do |key, value|
+          output << "      #{key}: #{value}"
+        end
+        output << ""
+        output.join("\n")
+      end
     end
   end
 end

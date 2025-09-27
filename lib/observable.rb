@@ -3,6 +3,10 @@
 require_relative "observable/version"
 require_relative "observable/configuration"
 require_relative "observable/instrumenter"
+require_relative "observable/persistence/span"
+require_relative "observable/persistence/span_repo"
+require_relative "observable/persistence/trace"
+require_relative "observable/persistence/trace_repo"
 
 module Observable
   class Error < StandardError; end

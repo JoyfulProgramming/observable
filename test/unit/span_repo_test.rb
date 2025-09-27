@@ -267,6 +267,38 @@ class SpanRepoTest < Minitest::Test
     assert_equal 2, matching_spans.count
   end
 
+  # #ai
+  def test_ai_returns_formatted_string_grouped_by_trace_id
+    trace_id = "trace123"
+    spans = [
+      span_with(name: "span1", trace_id: trace_id, attrs: {"service" => "user"}),
+      span_with(name: "span2", trace_id: trace_id, attrs: {"service" => "order"}),
+      span_with(name: "span3", trace_id: "other_trace", attrs: {"service" => "payment"})
+    ]
+    repo = described_class.new(spans: spans)
+
+    output = repo.ai
+
+    # Should show trace IDs as headers
+    assert_match(/Trace ID: #{trace_id}/, output)
+    assert_match(/Trace ID: other_trace/, output)
+
+    # Should show spans nested under their trace IDs
+    assert_match(/span1/, output)
+    assert_match(/span2/, output)
+    assert_match(/span3/, output)
+
+    # Should show attributes
+    assert_match(/service.*user/, output)
+    assert_match(/service.*order/, output)
+    assert_match(/service.*payment/, output)
+
+    # Should not show trace_id in individual span output
+    refute_match(/Trace ID: #{trace_id}.*Trace ID: #{trace_id}/m, output)
+
+    assert_kind_of String, output
+  end
+
   private
 
   def described_class
