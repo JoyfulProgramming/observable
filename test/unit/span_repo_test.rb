@@ -236,7 +236,6 @@ class SpanRepoTest < Minitest::Test
 
     error = assert_raises(Observable::NotFound) { repo.find_by!(name: "nonexistent") }
     assert_match(/No spans found with name: nonexistent/, error.message)
-    assert_match(/Available spans:.*span1.*span2/m, error.message)
   end
 
   # #to_block

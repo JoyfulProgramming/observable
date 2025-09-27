@@ -61,12 +61,7 @@ module Observable
 
       def find_by!(name:)
         span = find { |s| s.name == name }
-        if span
-          span
-        else
-          available_names = map(&:name).join(", ")
-          raise Observable::NotFound, "No spans found with name: #{name}\nAvailable spans: #{available_names}"
-        end
+        span || raise(Observable::NotFound, "No spans found with name: #{name}\n\nSpans:\n#{ai}")
       end
 
       def to_block(query)
