@@ -46,6 +46,10 @@ module Observable
           from_spandata(span_or_spandata)
         end
       end
+
+      def inspect
+        to_h
+      end
     end
   end
 end

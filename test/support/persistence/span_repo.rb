@@ -21,6 +21,14 @@ module Observable
         self.class.new(spans: group_by(&:trace_id).find { |_trace_id, spans| spans.count > 1 }.second)
       end
 
+      def one_and_only!
+        if one?
+          first
+        else
+          raise ArgumentError, "Expected 1 span, but found #{count}: #{to_a}"
+        end
+      end
+
       def find_one!(attrs: {}, &block)
         block = to_block(attrs) if attrs.any? && !block_given?
 

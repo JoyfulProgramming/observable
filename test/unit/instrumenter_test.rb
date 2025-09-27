@@ -70,30 +70,33 @@ class InstrumenterTest < Minitest::Test
   end
 
   def test_serialization_depth_is_configurable_for_hash
-    assume_instrumenter_with_config(serialization_depth: {:default => 2, "Hash" => 3}) do |instrumenter|
-      deep_hash = {
-        level1: {
-          level2: {
-            level3: {
-              level4: "should be captured due to Hash depth=3"
-            }
-          }
+    deep_hash = {
+      level_1: {
+        value: "level 1 value",
+        level_2: {
+          value: "level 2 value"
         }
       }
+    }
 
+    assume_instrumenter_with_config(serialization_depth: {"Hash" => 1}) do |instrumenter|
       test_method_with_hash_arg(instrumenter, deep_hash)
+
+      assert_hashes_match ({
+        "code.arguments.0.level_1.value" => "level 1 value"
+      }), spans.one_and_only!.attrs, match_keys: %r{code.arguments.0}
     end
 
-    span = spans.first
+    clear_spans
 
-    assert_equal ({
-      "code.function" => "InstrumenterTest#test_method_with_hash_arg",
-      "code.namespace" => "InstrumenterTest",
-      "app.namespace" => "app",
-      "code.arguments.0.level1.level2.level3.level4" => "should be captured due to Hash depth=3",
-      "error" => false,
-      "code.return" => "nil"
-    }), span.attrs.except("code.lineno", "code.filepath")
+    assume_instrumenter_with_config(serialization_depth: {"Hash" => 2}) do |instrumenter|
+      test_method_with_hash_arg(instrumenter, deep_hash)
+
+      assert_hashes_match ({
+        "code.arguments.0.level_1.value" => "level 1 value",
+        "code.arguments.0.level_1.level_2.value" => "level 2 value"
+      }), spans.one_and_only!.attrs, match_keys: %r{code.arguments.0}
+    end
   end
 
   def test_class_specific_serialization_depth_for_custom_class
@@ -268,6 +271,11 @@ class InstrumenterTest < Minitest::Test
     test_config.serialization_depth = serialization_depth if serialization_depth
     instrumenter = Observable::Instrumenter.new(config: test_config)
     yield instrumenter
+    instrumenter
+  end
+
+  def clear_spans
+    open_telemetry_exporter.reset
   end
 end
 
