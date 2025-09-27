@@ -4,19 +4,17 @@ class InstrumenterTest < Minitest::Test
   make_my_diffs_pretty!
   include TracingTestHelper
 
-  def test_instrumenter_class_exists
-    assert Observable::Instrumenter
-  end
-
   def test_instrument_method_executes_block
     instrumenter = Observable::Instrumenter.new
-    result = nil
+    side_effect = nil
 
-    instrumenter.instrument do
-      result = "executed"
+    return_value = instrumenter.instrument do
+      side_effect = "executed"
+      "returned value"
     end
 
-    assert_equal "executed", result
+    assert_equal "executed", side_effect
+    assert_equal "returned value", return_value
   end
 
   def test_instrument_captures_calling_method_name
