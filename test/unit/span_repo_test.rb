@@ -268,7 +268,7 @@ class SpanRepoTest < Minitest::Test
   end
 
   # #ai
-  def test_ai_returns_formatted_string_grouped_by_trace_id
+  def test_ai_returns_ansi_colored_formatted_string_grouped_by_trace_id
     trace_id = "trace123"
     spans = [
       span_with(name: "span1", trace_id: trace_id, attrs: {"service" => "user"}),
@@ -279,22 +279,22 @@ class SpanRepoTest < Minitest::Test
 
     output = repo.ai
 
-    # Should show trace IDs as headers
-    assert_match(/Trace ID: #{trace_id}/, output)
-    assert_match(/Trace ID: other_trace/, output)
+    # Should contain ANSI color codes
+    assert_match(/\e\[/, output, "Output should contain ANSI color codes")
+
+    # Should show trace IDs as headers with colors
+    assert_match(/#{trace_id}/, output)
+    assert_match(/other_trace/, output)
 
     # Should show spans nested under their trace IDs
     assert_match(/span1/, output)
     assert_match(/span2/, output)
     assert_match(/span3/, output)
 
-    # Should show attributes
+    # Should show attributes as key-value pairs
     assert_match(/service.*user/, output)
     assert_match(/service.*order/, output)
     assert_match(/service.*payment/, output)
-
-    # Should not show trace_id in individual span output
-    refute_match(/Trace ID: #{trace_id}.*Trace ID: #{trace_id}/m, output)
 
     assert_kind_of String, output
   end

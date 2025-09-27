@@ -9,6 +9,17 @@ module Observable
       attribute :trace_id, Dry.Types::String
       attribute :attrs, Dry.Types::Hash
 
+      # ANSI Color constants
+      RESET = "\e[0m"
+      BOLD = "\e[1m"
+      DIM = "\e[2m"
+      CYAN = "\e[36m"
+      YELLOW = "\e[33m"
+      GREEN = "\e[32m"
+      BLUE = "\e[34m"
+      MAGENTA = "\e[35m"
+      WHITE = "\e[37m"
+
       def hex_trace_id
         trace_id
       end
@@ -53,15 +64,52 @@ module Observable
 
       def ai
         output = []
-        output << "  Span: #{name}"
-        output << "    ID: #{id}"
-        output << "    Kind: #{kind}"
-        output << "    Attributes:"
-        attrs.each do |key, value|
-          output << "      #{key}: #{value}"
+        output << "  #{colorize(name, CYAN, BOLD)}"
+        output << "  id: #{colorize(id, WHITE)} "
+
+        if attrs.any?
+          attrs.each do |key, value|
+            output << "    #{colorize(key, YELLOW)}: #{colorize_value(value)}"
+          end
         end
+
         output << ""
         output.join("\n")
+      end
+
+      private
+
+      def colorize(text, color, style = nil)
+        styled_text = style ? "#{style}#{text}#{RESET}" : text
+        "#{color}#{styled_text}#{RESET}"
+      end
+
+      def colorize_kind(kind)
+        case kind.to_s
+        when "internal"
+          colorize(kind, GREEN)
+        when "producer"
+          colorize(kind, BLUE)
+        when "consumer"
+          colorize(kind, MAGENTA)
+        else
+          colorize(kind, WHITE)
+        end
+      end
+
+      def colorize_value(value)
+        case value
+        when String
+          colorize("\"#{value}\"", GREEN)
+        when Numeric
+          colorize(value.to_s, BLUE)
+        when TrueClass, FalseClass
+          colorize(value.to_s, MAGENTA)
+        when NilClass
+          colorize("null", DIM)
+        else
+          colorize(value.inspect, WHITE)
+        end
       end
     end
   end

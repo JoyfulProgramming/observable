@@ -80,13 +80,24 @@ module Observable
         output = []
 
         grouped_spans.each do |trace_id, spans|
-          output << "Trace ID: #{trace_id}"
+          output << colorize_trace_header(trace_id)
           spans.each do |span|
             output << span.ai
           end
         end
 
         output.join("\n")
+      end
+
+      private
+
+      def colorize_trace_header(trace_id)
+        # Use the same color constants from Span
+        cyan = "\e[36m"
+        bold = "\e[1m"
+        reset = "\e[0m"
+
+        "#{cyan}#{bold}#{trace_id}#{reset}"
       end
     end
   end
