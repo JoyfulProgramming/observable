@@ -2,7 +2,6 @@ require "test_helper"
 
 class InstrumenterTest < Minitest::Test
   include TracingTestHelper
-  include ReadableDiffsHelper
 
   def test_instrument_records_details_of_method_call
     instrumenter = Observable::Instrumenter.new
@@ -21,7 +20,7 @@ class InstrumenterTest < Minitest::Test
       "app.namespace" => "app",
       "code.filepath" => __FILE__,
       "code.function" => "InstrumenterTest#test_instrument_records_details_of_method_call",
-      "code.lineno" => 11,
+      "code.lineno" => 10,
       "code.namespace" => "InstrumenterTest",
       "code.return" => "returned value",
       "error" => false
