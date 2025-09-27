@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module HashMatcher
-  def assert_matches(expected, actual, message = nil)
+  def assert_hashes_match(expected, actual, message = nil, match_keys: nil)
     mutated_expected = expected.map do |key, value|
       if value.is_a?(Regexp) && actual[key].is_a?(String)
         [key, value.match?(actual[key]) ? actual[key] : value]
@@ -15,6 +15,21 @@ module HashMatcher
         [key, value]
       end
     end.to_h
-    assert_equal mutated_expected, actual, message
+    filtered_actual = actual.select { |key, _| matches_pattern?(match_keys, key) }
+    assert_equal mutated_expected, filtered_actual, message
+  end
+
+  def matches_pattern?(pattern, value)
+    if pattern.nil?
+      true
+    elsif pattern.is_a?(Array)
+      pattern.include?(value)
+    elsif pattern.is_a?(Regexp)
+      pattern.match?(value)
+    elsif pattern.is_a?(Range)
+      pattern.include?(value)
+    else
+      pattern == value
+    end
   end
 end

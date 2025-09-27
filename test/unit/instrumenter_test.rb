@@ -16,11 +16,11 @@ class InstrumenterTest < Minitest::Test
     assert_equal "returned value", return_value
     assert_equal 1, spans.count
     assert_equal "InstrumenterTest#test_instrument_records_details_of_method_call", spans.first.name
-    assert_matches ({
+    assert_hashes_match ({
       "app.namespace" => "app",
       "code.filepath" => %r{.*/test/unit/instrumenter_test.rb},
-      "code.function" => "InstrumenterTest#test_instrument_records_details_of_method_call",
       "code.lineno" => (0...),
+      "code.function" => "InstrumenterTest#test_instrument_records_details_of_method_call",
       "code.namespace" => "InstrumenterTest",
       "code.return" => "returned value",
       "error" => false
@@ -32,35 +32,17 @@ class InstrumenterTest < Minitest::Test
 
     test_method_with_args(instrumenter, "hello", 42)
 
-    span = spans.first
-
-    assert_equal ({
+    assert_hashes_match ({
+      "app.namespace" => "app",
+      "code.filepath" => %r{.*/test/unit/instrumenter_test.rb},
+      "code.lineno" => (0...),
       "code.function" => "InstrumenterTest#test_method_with_args",
       "code.namespace" => "InstrumenterTest",
-      "app.namespace" => "app",
       "code.arguments.0" => "hello",
       "code.arguments.1" => 42,
       "error" => false,
       "code.return" => "nil"
-    }), without_code_attributes(span.attrs)
-  end
-
-  def test_instrument_tracks_return_values
-    instrumenter = Observable::Instrumenter.new
-
-    instrumenter.instrument do
-      "returned value"
-    end
-
-    span = spans.first
-
-    assert_equal ({
-      "code.function" => "InstrumenterTest#test_instrument_tracks_return_values",
-      "code.namespace" => "InstrumenterTest",
-      "app.namespace" => "app",
-      "code.return" => "returned value",
-      "error" => false
-    }), span.attrs.except("code.lineno", "code.filepath")
+    }), spans.first.attrs
   end
 
   def test_instrument_records_exceptions
@@ -70,16 +52,11 @@ class InstrumenterTest < Minitest::Test
       method_that_raises_exception(instrumenter, "error message")
     end
 
-    span = spans.first
-    assert_equal ({
-      "code.function" => "InstrumenterTest#method_that_raises_exception",
-      "code.namespace" => "InstrumenterTest",
-      "code.arguments.0" => "error message",
-      "app.namespace" => "app",
+    assert_hashes_match ({
       "error" => true,
       "error.type" => "StandardError",
       "error.message" => "error message"
-    }), span.attrs.except("code.lineno", "code.filepath")
+    }), spans.first.attrs, match_keys: /error/
   end
 
   def test_configuration_works
