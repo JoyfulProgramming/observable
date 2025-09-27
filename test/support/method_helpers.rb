@@ -7,7 +7,7 @@ module MethodHelpers
     end
   end
 
-  def method_with_args(instrumenter, arg1, arg2)
+  def method_with_args(instrumenter, arg1, arg2, arg3)
     instrumenter.instrument(binding) do
       # Some work with args
     end

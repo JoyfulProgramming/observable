@@ -149,8 +149,10 @@ module Observable
       end
 
       case value
-      when String, Numeric, TrueClass, FalseClass, NilClass
+      when String, Numeric, TrueClass, FalseClass
         span.set_attribute(attribute_prefix, value)
+      when NilClass
+        span.set_attribute(attribute_prefix, "nil")
       when Hash
         serialize_hash(span, attribute_prefix, value, depth)
       when Array

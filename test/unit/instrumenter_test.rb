@@ -27,12 +27,14 @@ class InstrumenterTest < Minitest::Test
     method_with_args(
       Observable.instrumenter,
       "hello",
-      42
+      42,
+      nil
     )
 
     assert_hashes_match ({
       "code.arguments.0" => "hello",
-      "code.arguments.1" => 42
+      "code.arguments.1" => 42,
+      "code.arguments.2" => "nil"
     }), spans.one_and_only!.attrs, match_keys: %r{code.arguments}
   end
 
