@@ -59,6 +59,16 @@ module Observable
         raise ArgumentError, "Too many spans found:\n#{matched.inspect}"
       end
 
+      def find_by!(name:)
+        span = find { |s| s.name == name }
+        if span
+          span
+        else
+          available_names = map(&:name).join(", ")
+          raise Observable::NotFound, "No spans found with name: #{name}\nAvailable spans: #{available_names}"
+        end
+      end
+
       def to_block(query)
         lambda do |object|
           object.attrs.transform_keys(&:to_s).slice(*query.transform_keys(&:to_s).keys) == query.transform_keys(&:to_s)

@@ -212,6 +212,33 @@ class SpanRepoTest < Minitest::Test
     assert_match(/Too many spans found/, error.message)
   end
 
+  # #find_by!
+  def test_find_by_returns_first_span_with_matching_name
+    spans = [
+      span_with(name: "span1", attrs: {"service" => "user"}),
+      span_with(name: "span2", attrs: {"service" => "order"}),
+      span_with(name: "span1", attrs: {"service" => "payment"})
+    ]
+    repo = described_class.new(spans: spans)
+
+    result = repo.find_by!(name: "span1")
+
+    assert_equal "span1", result.name
+    assert_equal "user", result.attrs["service"]
+  end
+
+  def test_find_by_raises_not_found_when_no_spans_match
+    spans = [
+      span_with(name: "span1", attrs: {"service" => "user"}),
+      span_with(name: "span2", attrs: {"service" => "order"})
+    ]
+    repo = described_class.new(spans: spans)
+
+    error = assert_raises(Observable::NotFound) { repo.find_by!(name: "nonexistent") }
+    assert_match(/No spans found with name: nonexistent/, error.message)
+    assert_match(/Available spans:.*span1.*span2/m, error.message)
+  end
+
   # #to_block
   def test_to_block_creates_matching_block_for_attributes
     spans = [

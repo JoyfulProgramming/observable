@@ -13,6 +13,8 @@ module Observable
     end
   end
 
+  class NotFound < Error; end
+
   def self.instrumenter(config: nil)
     Instrumenter.new(config: config)
   end
