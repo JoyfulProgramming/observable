@@ -59,14 +59,14 @@ class InstrumenterTest < Minitest::Test
     }), spans.first.attrs, match_keys: /error/
   end
 
-  def test_configuration_works
-    test_config = Observable::Configuration.config.dup
-    test_config.app_namespace = "test_app"
-    test_config.serialization_depth = 5
+  def test_namespace_is_configurable
+    assume_instrumenter_with_config(app_namespace: "test_app") do |instrumenter|
+      test_method(instrumenter)
+    end
 
-    instrumenter = Observable::Instrumenter.new(config: test_config)
-    assert_equal "test_app", instrumenter.config.app_namespace
-    assert_equal 5, instrumenter.config.serialization_depth
+    assert_hashes_match ({
+      "app.namespace" => "test_app"
+    }), spans.first.attrs, match_keys: "app.namespace"
   end
 
   def test_class_specific_serialization_depth_for_hash
@@ -223,6 +223,12 @@ class InstrumenterTest < Minitest::Test
 
   private
 
+  def test_method(instrumenter)
+    instrumenter.instrument(binding) do
+      # Some work
+    end
+  end
+
   def test_method_with_args(instrumenter, arg1, arg2)
     instrumenter.instrument(binding) do
       # Some work with args
@@ -253,16 +259,17 @@ class InstrumenterTest < Minitest::Test
     end
   end
 
-  private
-
   def method_that_raises_exception(instrumenter, message)
     instrumenter.instrument(binding) do
       raise StandardError, message
     end
   end
 
-  def without_code_attributes(attrs)
-    attrs.except("code.lineno", "code.filepath")
+  def assume_instrumenter_with_config(app_namespace:)
+    test_config = Observable::Configuration.config.dup
+    test_config.app_namespace = app_namespace
+    instrumenter = Observable::Instrumenter.new(config: test_config)
+    yield instrumenter
   end
 end
 
