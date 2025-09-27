@@ -1,8 +1,8 @@
 require "test_helper"
 
 class InstrumenterTest < Minitest::Test
-  make_my_diffs_pretty!
   include TracingTestHelper
+  include ReadableDiffsHelper
 
   def test_instrument_records_details_of_method_call
     instrumenter = Observable::Instrumenter.new
