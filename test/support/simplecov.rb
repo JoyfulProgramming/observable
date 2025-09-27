@@ -16,4 +16,3 @@ SimpleCov.start do
     SimpleCov::Formatter::SimpleFormatter
   ])
 end
-
