@@ -69,23 +69,20 @@ class InstrumenterTest < Minitest::Test
     }), spans.first.attrs, match_keys: "app.namespace"
   end
 
-  def test_class_specific_serialization_depth_for_hash
-    test_config = Observable::Configuration.config.dup
-    test_config.serialization_depth = {:default => 2, "Hash" => 3}
-    instrumenter = Observable::Instrumenter.new(config: test_config)
-
-    # Create a deep nested hash that goes 4 levels deep
-    deep_hash = {
-      level1: {
-        level2: {
-          level3: {
-            level4: "should be captured due to Hash depth=3"
+  def test_serialization_depth_is_configurable_for_hash
+    assume_instrumenter_with_config(serialization_depth: {:default => 2, "Hash" => 3}) do |instrumenter|
+      deep_hash = {
+        level1: {
+          level2: {
+            level3: {
+              level4: "should be captured due to Hash depth=3"
+            }
           }
         }
       }
-    }
 
-    test_method_with_hash_arg(instrumenter, deep_hash)
+      test_method_with_hash_arg(instrumenter, deep_hash)
+    end
 
     span = spans.first
 
@@ -265,9 +262,10 @@ class InstrumenterTest < Minitest::Test
     end
   end
 
-  def assume_instrumenter_with_config(app_namespace:)
+  def assume_instrumenter_with_config(app_namespace: nil, serialization_depth: nil)
     test_config = Observable::Configuration.config.dup
-    test_config.app_namespace = app_namespace
+    test_config.app_namespace = app_namespace if app_namespace
+    test_config.serialization_depth = serialization_depth if serialization_depth
     instrumenter = Observable::Instrumenter.new(config: test_config)
     yield instrumenter
   end
