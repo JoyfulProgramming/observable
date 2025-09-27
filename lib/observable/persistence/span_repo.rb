@@ -18,7 +18,12 @@ module Observable
       end
 
       def in_root_trace
-        self.class.new(spans: group_by(&:trace_id).find { |_trace_id, spans| spans.count > 1 }.second)
+        result = group_by(&:trace_id).find { |_trace_id, spans| spans.count > 1 }
+        if result
+          self.class.new(spans: result.last)
+        else
+          self.class.new(spans: [])
+        end
       end
 
       def one_and_only!
