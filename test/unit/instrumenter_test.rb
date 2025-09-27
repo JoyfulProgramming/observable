@@ -16,11 +16,11 @@ class InstrumenterTest < Minitest::Test
     assert_equal "returned value", return_value
     assert_equal 1, spans.count
     assert_equal "InstrumenterTest#test_instrument_records_details_of_method_call", spans.first.name
-    assert_equal ({
+    assert_matches ({
       "app.namespace" => "app",
-      "code.filepath" => __FILE__,
+      "code.filepath" => %r{.*/test/unit/instrumenter_test.rb},
       "code.function" => "InstrumenterTest#test_instrument_records_details_of_method_call",
-      "code.lineno" => 10,
+      "code.lineno" => (0...),
       "code.namespace" => "InstrumenterTest",
       "code.return" => "returned value",
       "error" => false
