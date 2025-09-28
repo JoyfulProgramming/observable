@@ -266,6 +266,144 @@ class SpanRepoTest < Minitest::Test
     assert_equal 2, matching_spans.count
   end
 
+  # #where
+  def test_where_returns_spans_matching_simple_attribute
+    spans = [
+      span_with(name: "span1", attrs: {"error" => true}),
+      span_with(name: "span2", attrs: {"error" => false}),
+      span_with(name: "span3", attrs: {"error" => true})
+    ]
+    repo = described_class.new(spans: spans)
+
+    result = repo.where(error: true)
+
+    assert_equal 2, result.count
+    assert_equal ["span1", "span3"], result.map(&:name).sort
+  end
+
+  def test_where_returns_spans_matching_string_attribute
+    spans = [
+      span_with(name: "span1", attrs: {"service" => "user"}),
+      span_with(name: "span2", attrs: {"service" => "order"}),
+      span_with(name: "span3", attrs: {"service" => "user"})
+    ]
+    repo = described_class.new(spans: spans)
+
+    result = repo.where(service: "user")
+
+    assert_equal 2, result.count
+    assert_equal ["span1", "span3"], result.map(&:name).sort
+  end
+
+  def test_where_returns_empty_array_when_no_matches
+    spans = [
+      span_with(name: "span1", attrs: {"service" => "user"}),
+      span_with(name: "span2", attrs: {"service" => "order"})
+    ]
+    repo = described_class.new(spans: spans)
+
+    result = repo.where(service: "payment")
+
+    assert_equal 0, result.count
+  end
+
+  def test_where_supports_nested_hash_syntax
+    spans = [
+      span_with(name: "span1", attrs: {"code" => {"return" => "hello"}}),
+      span_with(name: "span2", attrs: {"code" => {"return" => "world"}}),
+      span_with(name: "span3", attrs: {"code" => {"error" => "failed"}})
+    ]
+    repo = described_class.new(spans: spans)
+
+    result = repo.where(code: {return: "hello"})
+
+    assert_equal 1, result.count
+    assert_equal "span1", result.first.name
+  end
+
+  def test_where_supports_dot_notation_for_nested_keys
+    spans = [
+      span_with(name: "span1", attrs: {"code" => {"return" => "hello"}}),
+      span_with(name: "span2", attrs: {"code" => {"return" => "world"}}),
+      span_with(name: "span3", attrs: {"code" => {"error" => "failed"}})
+    ]
+    repo = described_class.new(spans: spans)
+
+    result = repo.where("code.return" => "hello")
+
+    assert_equal 1, result.count
+    assert_equal "span1", result.first.name
+  end
+
+  def test_where_supports_deeply_nested_dot_notation
+    spans = [
+      span_with(name: "span1", attrs: {"user" => {"profile" => {"name" => "John"}}}),
+      span_with(name: "span2", attrs: {"user" => {"profile" => {"name" => "Jane"}}}),
+      span_with(name: "span3", attrs: {"user" => {"settings" => {"theme" => "dark"}}})
+    ]
+    repo = described_class.new(spans: spans)
+
+    result = repo.where("user.profile.name" => "John")
+
+    assert_equal 1, result.count
+    assert_equal "span1", result.first.name
+  end
+
+  def test_where_supports_multiple_criteria
+    spans = [
+      span_with(name: "span1", attrs: {"service" => "user", "error" => true}),
+      span_with(name: "span2", attrs: {"service" => "user", "error" => false}),
+      span_with(name: "span3", attrs: {"service" => "order", "error" => true})
+    ]
+    repo = described_class.new(spans: spans)
+
+    result = repo.where(service: "user", error: true)
+
+    assert_equal 1, result.count
+    assert_equal "span1", result.first.name
+  end
+
+  def test_where_supports_mixed_nested_and_simple_criteria
+    spans = [
+      span_with(name: "span1", attrs: {"service" => "user", "code" => {"return" => "success"}}),
+      span_with(name: "span2", attrs: {"service" => "user", "code" => {"return" => "error"}}),
+      span_with(name: "span3", attrs: {"service" => "order", "code" => {"return" => "success"}})
+    ]
+    repo = described_class.new(spans: spans)
+
+    result = repo.where(:service => "user", "code.return" => "success")
+
+    assert_equal 1, result.count
+    assert_equal "span1", result.first.name
+  end
+
+  def test_where_handles_missing_nested_keys_gracefully
+    spans = [
+      span_with(name: "span1", attrs: {"code" => {"return" => "hello"}}),
+      span_with(name: "span2", attrs: {"code" => {}}),
+      span_with(name: "span3", attrs: {})
+    ]
+    repo = described_class.new(spans: spans)
+
+    result = repo.where("code.return" => "hello")
+
+    assert_equal 1, result.count
+    assert_equal "span1", result.first.name
+  end
+
+  def test_where_returns_new_span_repo_instance
+    spans = [
+      span_with(name: "span1", attrs: {"error" => true}),
+      span_with(name: "span2", attrs: {"error" => false})
+    ]
+    repo = described_class.new(spans: spans)
+
+    result = repo.where(error: true)
+
+    assert_kind_of described_class, result
+    refute_equal repo.object_id, result.object_id
+  end
+
   # #ai
   def test_ai_returns_ansi_colored_formatted_string_grouped_by_trace_id
     trace_id = "trace123"

@@ -64,6 +64,11 @@ module Observable
         span || raise(Observable::NotFound, "No spans found with name: #{name}\n\nSpans:\n#{ai}")
       end
 
+      def where(criteria)
+        matching_spans = select { |span| matches_criteria?(span, criteria) }
+        self.class.new(spans: matching_spans)
+      end
+
       def to_block(query)
         lambda do |object|
           object.attrs.transform_keys(&:to_s).slice(*query.transform_keys(&:to_s).keys) == query.transform_keys(&:to_s)
@@ -85,6 +90,35 @@ module Observable
       end
 
       private
+
+      def matches_criteria?(span, criteria)
+        criteria.all? do |key, expected_value|
+          if expected_value.is_a?(Hash)
+            # Handle nested hash syntax like {code: {return: "hello"}}
+            nested_hash = get_value(span.attrs, key)
+            return false unless nested_hash.is_a?(Hash)
+            expected_value.all? do |nested_key, nested_value|
+              get_value(nested_hash, nested_key) == nested_value
+            end
+          else
+            # Handle simple keys and dot notation
+            get_value(span.attrs, key) == expected_value
+          end
+        end
+      end
+
+      def get_value(hash, key)
+        if key.is_a?(String) && key.include?(".")
+          # Handle dot notation like "code.return"
+          key.split(".").reduce(hash) do |current_hash, nested_key|
+            return nil unless current_hash.is_a?(Hash)
+            current_hash[nested_key] || current_hash[nested_key.to_s]
+          end
+        else
+          # Handle simple keys (try both symbol and string)
+          hash[key] || hash[key.to_s]
+        end
+      end
 
       def colorize_trace_header(trace_id)
         # Use the same color constants from Span
