@@ -404,6 +404,75 @@ class SpanRepoTest < Minitest::Test
     refute_equal repo.object_id, result.object_id
   end
 
+  # #find_by_attrs!
+  def test_find_by_attrs_returns_first_span_matching_simple_attribute
+    spans = [
+      span_with(name: "span1", attrs: {"service" => "user", "error" => true}),
+      span_with(name: "span2", attrs: {"service" => "order", "error" => false}),
+      span_with(name: "span3", attrs: {"service" => "user", "error" => true})
+    ]
+    repo = described_class.new(spans: spans)
+
+    result = repo.find_by_attrs!(service: "user")
+
+    assert_equal "span1", result.name
+    assert_equal "user", result.attrs["service"]
+  end
+
+  def test_find_by_attrs_returns_first_span_matching_multiple_attributes
+    spans = [
+      span_with(name: "span1", attrs: {"service" => "user", "error" => true}),
+      span_with(name: "span2", attrs: {"service" => "user", "error" => false}),
+      span_with(name: "span3", attrs: {"service" => "order", "error" => true})
+    ]
+    repo = described_class.new(spans: spans)
+
+    result = repo.find_by_attrs!(service: "user", error: true)
+
+    assert_equal "span1", result.name
+    assert_equal "user", result.attrs["service"]
+    assert_equal true, result.attrs["error"]
+  end
+
+  def test_find_by_attrs_supports_nested_hash_syntax
+    spans = [
+      span_with(name: "span1", attrs: {"code" => {"return" => "hello"}}),
+      span_with(name: "span2", attrs: {"code" => {"return" => "world"}}),
+      span_with(name: "span3", attrs: {"code" => {"error" => "failed"}})
+    ]
+    repo = described_class.new(spans: spans)
+
+    result = repo.find_by_attrs!(code: {return: "hello"})
+
+    assert_equal "span1", result.name
+    assert_equal "hello", result.attrs["code"]["return"]
+  end
+
+  def test_find_by_attrs_supports_dot_notation_for_nested_keys
+    spans = [
+      span_with(name: "span1", attrs: {"code" => {"return" => "hello"}}),
+      span_with(name: "span2", attrs: {"code" => {"return" => "world"}}),
+      span_with(name: "span3", attrs: {"code" => {"error" => "failed"}})
+    ]
+    repo = described_class.new(spans: spans)
+
+    result = repo.find_by_attrs!("code.return" => "hello")
+
+    assert_equal "span1", result.name
+    assert_equal "hello", result.attrs["code"]["return"]
+  end
+
+  def test_find_by_attrs_raises_not_found_when_no_spans_match
+    spans = [
+      span_with(name: "span1", attrs: {"service" => "user"}),
+      span_with(name: "span2", attrs: {"service" => "order"})
+    ]
+    repo = described_class.new(spans: spans)
+
+    error = assert_raises(Observable::NotFound) { repo.find_by_attrs!(service: "payment") }
+    assert_match(/No spans found with attributes/, error.message)
+  end
+
   # #ai
   def test_ai_returns_ansi_colored_formatted_string_grouped_by_trace_id
     trace_id = "trace123"

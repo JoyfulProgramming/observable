@@ -64,6 +64,11 @@ module Observable
         span || raise(Observable::NotFound, "No spans found with name: #{name}\n\nSpans:\n#{ai}")
       end
 
+      def find_by_attrs!(attrs)
+        span = find { |s| matches_criteria?(s, attrs) }
+        span || raise(Observable::NotFound, "No spans found with attributes: #{attrs}\n\nSpans:\n#{ai}")
+      end
+
       def where(criteria)
         matching_spans = select { |span| matches_criteria?(span, criteria) }
         self.class.new(spans: matching_spans)
