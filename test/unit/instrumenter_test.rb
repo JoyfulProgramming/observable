@@ -60,10 +60,11 @@ class InstrumenterTest < Minitest::Test
   end
 
   class StructuredError < StandardError
-    attr_reader :context
+    attr_reader :context, :type
 
-    def initialize(message, context: {})
+    def initialize(message, type:, context:)
       @context = context.to_h
+      @type = type
       super(message)
     end
 
@@ -76,13 +77,13 @@ class InstrumenterTest < Minitest::Test
     assert_raises(StructuredError) do
       method_that_raises_exception(
         Observable.instrumenter,
-        StructuredError.new("error message", context: {foo: "bar"})
+        StructuredError.new("error message", type: "Error::Class", context: {foo: "bar"})
       )
     end
 
     assert_hashes_match ({
       "error" => true,
-      "error.type" => "InstrumenterTest::StructuredError",
+      "error.type" => "Error::Class",
       "error.message" => "error message",
       "error.stacktrace" => /.*/,
       "error.context.foo" => "bar"

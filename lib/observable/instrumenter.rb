@@ -112,7 +112,7 @@ module Observable
           result
         rescue => e
           span.set_attribute("error", true)
-          span.set_attribute("error.type", e.class.name)
+          span.set_attribute("error.type", e.respond_to?(:type) ? e.type : e.class.name)
           span.set_attribute("error.message", e.message)
           span.set_attribute("error.stacktrace", e.full_message(highlight: false))
           latest_backtrace_line = e.backtrace.find { |line| line.include?(caller_info.filepath) }
