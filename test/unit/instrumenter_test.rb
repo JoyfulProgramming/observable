@@ -15,7 +15,7 @@ class InstrumenterTest < Minitest::Test
     assert_hashes_match ({
       "app.namespace" => "app",
       "code.filepath" => %r{.*/test/support/method_helpers.rb},
-      "code.lineno" => 48,
+      "code.lineno" => 51,
       "code.function" => "MethodHelpers#method_with_return_value",
       "code.namespace" => "MethodHelpers",
       "code.return" => "returned value",
@@ -57,6 +57,36 @@ class InstrumenterTest < Minitest::Test
       "error.message" => "error message",
       "error.stacktrace" => /.*/
     }), first_span_attrs!, match_keys: /error|code/
+  end
+
+  class StructuredError < StandardError
+    attr_reader :context
+
+    def initialize(message, context: {})
+      @context = context.to_h
+      super(message)
+    end
+
+    def to_h
+      {message: message}.merge(@context)
+    end
+  end
+
+  def test_instrumenter_records_details_of_structured_errors
+    assert_raises(StructuredError) do
+      method_that_raises_exception(
+        Observable.instrumenter,
+        StructuredError.new("error message", context: {foo: "bar"})
+      )
+    end
+
+    assert_hashes_match ({
+      "error" => true,
+      "error.type" => "InstrumenterTest::StructuredError",
+      "error.message" => "error message",
+      "error.stacktrace" => /.*/,
+      "error.context.foo" => "bar"
+    }), first_span_attrs!, match_keys: /error/
   end
 
   def test_namespace_is_configurable

@@ -117,6 +117,7 @@ module Observable
           span.set_attribute("error.stacktrace", e.full_message(highlight: false))
           latest_backtrace_line = e.backtrace.find { |line| line.include?(caller_info.filepath) }
           span.set_attribute("code.lineno", latest_backtrace_line.split(":")[1].to_i) if latest_backtrace_line
+          serialize_argument(span, "error.context", e.to_h.except(:message)) if e.respond_to?(:to_h)
           span.status = OpenTelemetry::Trace::Status.error(e.message)
           raise
         end

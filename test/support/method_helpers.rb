@@ -37,10 +37,13 @@ module MethodHelpers
     end
   end
 
-  def method_that_raises_exception(instrumenter, message)
+  def method_that_raises_exception(instrumenter, error_or_message)
     instrumenter.instrument(binding) do
-      _something = "something"
-      raise StandardError, message
+      if error_or_message.is_a?(String)
+        raise StandardError, error_or_message
+      else
+        raise error_or_message
+      end
     end
   end
 
