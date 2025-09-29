@@ -59,13 +59,13 @@ module Observable
       end
 
       def inspect
-        to_h
+        ai
       end
 
       def ai
         output = []
         output << "  #{colorize(name, CYAN, BOLD)}"
-        output << "  id: #{colorize(id, WHITE)} "
+        output << "  id: #{colorize(id, WHITE)}"
 
         if attrs.any?
           attrs.each do |key, value|
@@ -80,8 +80,11 @@ module Observable
       private
 
       def colorize(text, color, style = nil)
-        styled_text = style ? "#{style}#{text}#{RESET}" : text
-        "#{color}#{styled_text}#{RESET}"
+        if style
+          "#{color}#{style}#{text}#{RESET}"
+        else
+          "#{color}#{text}#{RESET}"
+        end
       end
 
       def colorize_kind(kind)

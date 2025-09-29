@@ -80,6 +80,10 @@ module Observable
         end
       end
 
+      def inspect
+        ai
+      end
+
       def ai
         grouped_spans = group_by(&:trace_id)
         output = []

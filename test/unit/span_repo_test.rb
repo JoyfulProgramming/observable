@@ -505,6 +505,16 @@ class SpanRepoTest < Minitest::Test
     assert_kind_of String, output
   end
 
+  def test_inspected_output_represents_spans_in_trace_in_color
+    spans = [span_with(name: "span1")]
+    repo = described_class.new(spans: spans)
+    assert_equal [
+      "#{cyan}#{bold}trace123#{reset}",
+      "  #{cyan}#{bold}span1#{reset}",
+      "  id: #{white}span_span1#{reset}"
+    ], repo.inspect.split("\n")
+  end
+
   private
 
   def described_class
@@ -519,5 +529,29 @@ class SpanRepoTest < Minitest::Test
       trace_id: trace_id,
       attrs: attrs
     )
+  end
+
+  def cyan
+    Observable::Persistence::Span::CYAN
+  end
+
+  def bold
+    Observable::Persistence::Span::BOLD
+  end
+
+  def reset
+    Observable::Persistence::Span::RESET
+  end
+
+  def white
+    Observable::Persistence::Span::WHITE
+  end
+
+  def yellow
+    Observable::Persistence::Span::YELLOW
+  end
+
+  def green
+    Observable::Persistence::Span::GREEN
   end
 end
