@@ -17,5 +17,9 @@ module Observable
     def inspect
       "#<#{self.class.name}: #{message}, type=#{type}, context=#{@context.inspect}>"
     end
+
+    def pretty_print
+      "#<#{self.class.name}: message: #{message}, type: #{type}, context: #{@context.inspect}>"
+    end
   end
 end

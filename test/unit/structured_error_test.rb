@@ -176,4 +176,26 @@ class StructuredErrorTest < Minitest::Test
 
     assert_equal %(#<Observable::StructuredError: message, type=CustomError, context={foo: "bar"}>), error.inspect
   end
+
+  def test_to_s_returns_message_only
+    error = Observable::StructuredError.new(
+      "message",
+      type: "CustomError",
+      context: {foo: "bar"}
+    )
+
+    assert_equal "message", error.to_s
+  end
+
+  def test_pretty_print_formats_error_with_indentation
+    error = Observable::StructuredError.new(
+      "message",
+      type: "CustomError",
+      context: {foo: "bar"}
+    )
+
+    expected = %(#<Observable::StructuredError: message: message, type: CustomError, context: {foo: "bar"}>)
+
+    assert_equal expected, error.pretty_print
+  end
 end
