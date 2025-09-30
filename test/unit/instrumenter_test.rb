@@ -53,10 +53,10 @@ class InstrumenterTest < Minitest::Test
       "code.lineno" => 43,
       "code.arguments.0" => "error message",
       "error" => true,
-      "error.type" => "StandardError",
-      "error.message" => "error message",
-      "error.stacktrace" => /.*/
-    }), first_span_attrs!, match_keys: /error|code/
+      "exception.type" => "StandardError",
+      "exception.message" => "error message",
+      "exception.stacktrace" => /.*/
+    }), first_span_attrs!, match_keys: /error|exception|code/
   end
 
   def test_instrumenter_records_details_of_structured_errors
@@ -69,11 +69,11 @@ class InstrumenterTest < Minitest::Test
 
     assert_hashes_match ({
       "error" => true,
-      "error.type" => "Error::Class",
-      "error.message" => "error message",
-      "error.stacktrace" => /.*/,
-      "error.context.foo" => "bar"
-    }), first_span_attrs!, match_keys: /error/
+      "exception.type" => "Error::Class",
+      "exception.message" => "error message",
+      "exception.stacktrace" => /.*/,
+      "exception.context.foo" => "bar"
+    }), first_span_attrs!, match_keys: /error|exception/
   end
 
   def test_namespace_is_configurable

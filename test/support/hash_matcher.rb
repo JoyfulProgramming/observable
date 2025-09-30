@@ -6,11 +6,11 @@ module HashMatcher
       if value.is_a?(Regexp) && actual[key].is_a?(String)
         [key, value.match?(actual[key]) ? actual[key] : value]
       elsif value.is_a?(Regexp) && !actual[key].is_a?(String)
-        raise TypeError, "Cannot match #{key} with #{value.inspect} - needed a String got #{actual[key].class}"
+        [key, value]
       elsif value.is_a?(Range) && actual[key].is_a?(Numeric)
         [key, value.include?(actual[key]) ? actual[key] : value]
       elsif value.is_a?(Range) && !actual[key].is_a?(Numeric)
-        raise TypeError, "Cannot match #{key} with #{value.inspect} - needed a Numeric got #{actual[key].class}"
+        [key, value]
       else
         [key, value]
       end

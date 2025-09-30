@@ -112,12 +112,12 @@ module Observable
           result
         rescue => e
           span.set_attribute("error", true)
-          span.set_attribute("error.type", e.respond_to?(:type) ? e.type : e.class.name)
-          span.set_attribute("error.message", e.message)
-          span.set_attribute("error.stacktrace", e.full_message(highlight: false))
+          span.set_attribute("exception.type", e.respond_to?(:type) ? e.type : e.class.name)
+          span.set_attribute("exception.message", e.message)
+          span.set_attribute("exception.stacktrace", e.full_message(highlight: false))
           latest_backtrace_line = e.backtrace.find { |line| line.include?(caller_info.filepath) }
           span.set_attribute("code.lineno", latest_backtrace_line.split(":")[1].to_i) if latest_backtrace_line
-          serialize_argument(span, "error.context", e.to_h.except(:message)) if e.respond_to?(:to_h)
+          serialize_argument(span, "exception.context", e.to_h.except(:message)) if e.respond_to?(:to_h)
           span.status = OpenTelemetry::Trace::Status.error(e.message)
           raise
         end
