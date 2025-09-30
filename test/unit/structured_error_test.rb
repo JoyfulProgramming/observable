@@ -535,4 +535,94 @@ class StructuredErrorTest < Minitest::Test
     assert_equal "Object", structured_error.type
     assert_equal "Error with failing name method", structured_error.message
   end
+
+  # Custom error converter configuration tests
+  class CustomErrorClass < StandardError
+    def type
+      "CustomType"
+    end
+
+    def context
+      {custom: "data"}
+    end
+  end
+
+  def test_from_error_handles_multiple_custom_converters
+    converter = lambda do |error|
+      {
+        message: "Message Prefix: #{error.message}",
+        type: "Type Prefix: #{error.type}",
+        context: error.context.merge(foo: "bar")
+      }
+    end
+
+    Observable.configure do |config|
+      config.custom_error_converters = {
+        "StructuredErrorTest::CustomErrorClass" => converter
+      }
+    end
+
+    login_error = CustomErrorClass.new("Invalid credentials")
+    structured_login_error = Observable::StructuredError.from_error(login_error)
+
+    assert_equal "Message Prefix: Invalid credentials", structured_login_error.message
+    assert_equal "Type Prefix: CustomType", structured_login_error.type
+    assert_equal({custom: "data", foo: "bar"}, structured_login_error.context)
+  end
+
+  def test_from_error_falls_back_to_default_behavior_when_no_converter_configured
+    Observable.configure do |config|
+      config.custom_error_converters = {}
+    end
+
+    original_error = CustomErrorClass.new("No converter")
+
+    structured_error = Observable::StructuredError.from_error(original_error)
+
+    assert_equal "No converter", structured_error.message
+    assert_equal "CustomType", structured_error.type
+    assert_equal({custom: "data"}, structured_error.context)
+  end
+
+  def test_from_error_handles_converter_that_returns_invalid_structure
+    invalid_converter = lambda do |error|
+      {
+        invalid: "structure"
+      }
+    end
+
+    Observable.configure do |config|
+      config.custom_error_converters = {
+        "InstrumenterTest::CustomErrorClass" => invalid_converter
+      }
+    end
+
+    original_error = CustomErrorClass.new("Test message")
+
+    structured_error = Observable::StructuredError.from_error(original_error)
+
+    assert_equal "Test message", structured_error.message
+    assert_equal "CustomType", structured_error.type
+    assert_equal({custom: "data"}, structured_error.context)
+  end
+
+  def test_from_error_handles_converter_that_raises_exception
+    custom_error_class = Class.new(StandardError)
+
+    failing_converter = lambda do |error|
+      raise "Converter failed"
+    end
+
+    Observable.configure do |config|
+      config.custom_error_converters = {custom_error_class => failing_converter}
+    end
+
+    original_error = custom_error_class.new("Test message")
+
+    structured_error = Observable::StructuredError.from_error(original_error)
+
+    assert_equal "Test message", structured_error.message
+    assert_equal "Observable::StructuredError", structured_error.type
+    assert_equal({}, structured_error.context)
+  end
 end

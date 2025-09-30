@@ -12,5 +12,6 @@ module Observable
     setting :pii_filters, default: []
     setting :serialization_depth, default: {default: 2}
     setting :track_return_values, default: true
+    setting :custom_error_converters, default: {}
   end
 end

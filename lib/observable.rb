@@ -23,4 +23,8 @@ module Observable
   def self.instrumenter(config: nil)
     Instrumenter.new(config: config)
   end
+
+  def self.configure
+    yield Configuration.config
+  end
 end

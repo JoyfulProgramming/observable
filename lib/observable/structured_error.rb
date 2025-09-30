@@ -23,11 +23,20 @@ module Observable
     end
 
     def self.from_error(error)
-      message = safe_message(error)
-      type = safe_type(error)
-      context = safe_context(error)
-
-      new(message, type: type, context: context)
+      custom_converter_result = try_custom_converter(error)
+      if custom_converter_result
+        new(
+          custom_converter_result[:message],
+          type: custom_converter_result[:type],
+          context: custom_converter_result[:context]
+        )
+      else
+        new(
+          safe_message(error),
+          type: safe_type(error),
+          context: safe_context(error)
+        )
+      end
     end
 
     def self.safe_message(error)
@@ -72,6 +81,29 @@ module Observable
       {}
     end
 
-    private_class_method :safe_message, :safe_type, :safe_context
+    def self.try_custom_converter(error)
+      return nil if error.nil?
+
+      converters = Configuration.config.custom_error_converters
+      return nil if converters.empty?
+
+      converter = converters[error.class.name]
+      return nil unless converter
+
+      result = begin
+        converter.call(error)
+      rescue
+        nil
+      end
+
+      if result&.is_a?(Hash) &&
+          result.key?(:message) &&
+          result.key?(:type) &&
+          result.key?(:context)
+        result
+      end
+    end
+
+    private_class_method :safe_message, :safe_type, :safe_context, :try_custom_converter
   end
 end
