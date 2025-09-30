@@ -198,4 +198,341 @@ class StructuredErrorTest < Minitest::Test
 
     assert_equal expected, error.pretty_print
   end
+
+  # from_error factory method tests
+
+  def test_from_error_creates_structured_error_from_standard_error
+    original_error = StandardError.new("Database connection failed")
+
+    structured_error = Observable::StructuredError.from_error(original_error)
+
+    assert_kind_of Observable::StructuredError, structured_error
+    assert_equal "Database connection failed", structured_error.message
+    assert_equal "StandardError", structured_error.type
+    assert_equal({}, structured_error.context)
+  end
+
+  def test_from_error_uses_error_class_name_as_type_when_no_type_method
+    original_error = ArgumentError.new("Invalid argument")
+
+    structured_error = Observable::StructuredError.from_error(original_error)
+
+    assert_equal "ArgumentError", structured_error.type
+    assert_equal "Invalid argument", structured_error.message
+  end
+
+  def test_from_error_uses_type_method_when_available
+    original_error = Object.new
+    def original_error.message
+      "Custom error message"
+    end
+
+    def original_error.type
+      "CustomErrorType"
+    end
+
+    structured_error = Observable::StructuredError.from_error(original_error)
+
+    assert_equal "CustomErrorType", structured_error.type
+    assert_equal "Custom error message", structured_error.message
+  end
+
+  def test_from_error_uses_context_method_when_available
+    original_error = Object.new
+    def original_error.message
+      "Error with context"
+    end
+
+    def original_error.context
+      {user_id: 123, action: "login"}
+    end
+
+    structured_error = Observable::StructuredError.from_error(original_error)
+
+    assert_equal({user_id: 123, action: "login"}, structured_error.context)
+    assert_equal "Error with context", structured_error.message
+  end
+
+  def test_from_error_handles_error_without_context_method
+    original_error = StandardError.new("Simple error")
+
+    structured_error = Observable::StructuredError.from_error(original_error)
+
+    assert_equal({}, structured_error.context)
+    assert_equal "Simple error", structured_error.message
+  end
+
+  def test_from_error_uses_name_method_when_available
+    original_error = Object.new
+    def original_error.message
+      "Named error"
+    end
+
+    def original_error.name
+      "ValidationError"
+    end
+
+    structured_error = Observable::StructuredError.from_error(original_error)
+
+    assert_equal "ValidationError", structured_error.type
+    assert_equal "Named error", structured_error.message
+  end
+
+  def test_from_error_prioritizes_type_method_over_name_method
+    original_error = Object.new
+    def original_error.message
+      "Priority test error"
+    end
+
+    def original_error.type
+      "TypeMethodResult"
+    end
+
+    def original_error.name
+      "NameMethodResult"
+    end
+
+    structured_error = Observable::StructuredError.from_error(original_error)
+
+    assert_equal "TypeMethodResult", structured_error.type
+  end
+
+  def test_from_error_handles_nil_error
+    structured_error = Observable::StructuredError.from_error(nil)
+
+    assert_equal "", structured_error.message
+    assert_equal "NilClass", structured_error.type
+    assert_equal({}, structured_error.context)
+  end
+
+  def test_from_error_handles_error_with_nil_type_method
+    original_error = Object.new
+    def original_error.message
+      "Error with nil type"
+    end
+
+    def original_error.type
+      nil
+    end
+
+    structured_error = Observable::StructuredError.from_error(original_error)
+
+    assert_equal "Object", structured_error.type
+    assert_equal "Error with nil type", structured_error.message
+  end
+
+  def test_from_error_handles_error_with_nil_name_method
+    original_error = Object.new
+    def original_error.message
+      "Error with nil name"
+    end
+
+    def original_error.name
+      nil
+    end
+
+    structured_error = Observable::StructuredError.from_error(original_error)
+
+    assert_equal "Object", structured_error.type
+    assert_equal "Error with nil name", structured_error.message
+  end
+
+  def test_from_error_handles_error_with_nil_context_method
+    original_error = Object.new
+    def original_error.message
+      "Error with nil context"
+    end
+
+    def original_error.context
+      nil
+    end
+
+    structured_error = Observable::StructuredError.from_error(original_error)
+
+    assert_equal({}, structured_error.context)
+    assert_equal "Error with nil context", structured_error.message
+  end
+
+  def test_from_error_handles_error_with_empty_string_type
+    original_error = Object.new
+    def original_error.message
+      "Error with empty type"
+    end
+
+    def original_error.type
+      ""
+    end
+
+    structured_error = Observable::StructuredError.from_error(original_error)
+
+    assert_equal "Object", structured_error.type
+    assert_equal "Error with empty type", structured_error.message
+  end
+
+  def test_from_error_handles_error_with_complex_context
+    original_error = Object.new
+    def original_error.message
+      "Complex context error"
+    end
+
+    def original_error.context
+      {
+        user: {id: 1, name: "John"},
+        metadata: {timestamp: Time.now, tags: ["urgent"]},
+        nested: {deep: {value: "test"}}
+      }
+    end
+
+    structured_error = Observable::StructuredError.from_error(original_error)
+
+    assert_equal "Complex context error", structured_error.message
+    assert_equal 1, structured_error.context[:user][:id]
+    assert_equal "John", structured_error.context[:user][:name]
+    assert_equal ["urgent"], structured_error.context[:metadata][:tags]
+  end
+
+  def test_from_error_handles_error_with_context_that_responds_to_to_h
+    context_obj = Object.new
+    def context_obj.to_h
+      {converted: "value", nested: {data: "test"}}
+    end
+
+    original_error = Object.new
+    def original_error.message
+      "Error with to_h context"
+    end
+    original_error.define_singleton_method(:context) { context_obj }
+
+    structured_error = Observable::StructuredError.from_error(original_error)
+
+    assert_equal({converted: "value", nested: {data: "test"}}, structured_error.context)
+  end
+
+  def test_from_error_handles_custom_error_class
+    custom_error_class = Class.new(StandardError) do
+      def type
+        "CustomErrorClass"
+      end
+
+      def context
+        {custom: "data", class_name: self.class.name}
+      end
+    end
+
+    original_error = custom_error_class.new("Custom error message")
+
+    structured_error = Observable::StructuredError.from_error(original_error)
+
+    assert_equal "Custom error message", structured_error.message
+    assert_equal "CustomErrorClass", structured_error.type
+    assert_equal({custom: "data", class_name: custom_error_class.name}, structured_error.context)
+  end
+
+  def test_from_error_handles_error_with_symbol_type
+    original_error = Object.new
+    def original_error.message
+      "Symbol type error"
+    end
+
+    def original_error.type
+      :symbol_type
+    end
+
+    structured_error = Observable::StructuredError.from_error(original_error)
+
+    assert_equal "symbol_type", structured_error.type
+    assert_equal "Symbol type error", structured_error.message
+  end
+
+  def test_from_error_handles_error_with_symbol_name
+    original_error = Object.new
+    def original_error.message
+      "Symbol name error"
+    end
+
+    def original_error.name
+      :symbol_name
+    end
+
+    structured_error = Observable::StructuredError.from_error(original_error)
+
+    assert_equal "symbol_name", structured_error.type
+    assert_equal "Symbol name error", structured_error.message
+  end
+
+  def test_from_error_handles_error_with_numeric_type
+    original_error = Object.new
+    def original_error.message
+      "Numeric type error"
+    end
+
+    def original_error.type
+      42
+    end
+
+    structured_error = Observable::StructuredError.from_error(original_error)
+
+    assert_equal "42", structured_error.type
+    assert_equal "Numeric type error", structured_error.message
+  end
+
+  def test_from_error_handles_error_without_message_method
+    original_error = Object.new
+    def original_error.type
+      "NoMessageError"
+    end
+
+    structured_error = Observable::StructuredError.from_error(original_error)
+
+    assert_equal "", structured_error.message
+    assert_equal "NoMessageError", structured_error.type
+  end
+
+  def test_from_error_handles_error_with_exception_that_raises_in_type_method
+    original_error = Object.new
+    def original_error.message
+      "Error with failing type method"
+    end
+
+    def original_error.type
+      raise "Type method failed"
+    end
+
+    structured_error = Observable::StructuredError.from_error(original_error)
+
+    assert_equal "Object", structured_error.type
+    assert_equal "Error with failing type method", structured_error.message
+  end
+
+  def test_from_error_handles_error_with_exception_that_raises_in_context_method
+    original_error = Object.new
+    def original_error.message
+      "Error with failing context method"
+    end
+
+    def original_error.context
+      raise "Context method failed"
+    end
+
+    structured_error = Observable::StructuredError.from_error(original_error)
+
+    assert_equal({}, structured_error.context)
+    assert_equal "Error with failing context method", structured_error.message
+  end
+
+  def test_from_error_handles_error_with_exception_that_raises_in_name_method
+    original_error = Object.new
+    def original_error.message
+      "Error with failing name method"
+    end
+
+    def original_error.name
+      raise "Name method failed"
+    end
+
+    structured_error = Observable::StructuredError.from_error(original_error)
+
+    assert_equal "Object", structured_error.type
+    assert_equal "Error with failing name method", structured_error.message
+  end
 end
