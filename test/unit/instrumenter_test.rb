@@ -59,25 +59,11 @@ class InstrumenterTest < Minitest::Test
     }), first_span_attrs!, match_keys: /error|code/
   end
 
-  class StructuredError < StandardError
-    attr_reader :context, :type
-
-    def initialize(message, type:, context:)
-      @context = context.to_h
-      @type = type
-      super(message)
-    end
-
-    def to_h
-      {message: message}.merge(@context)
-    end
-  end
-
   def test_instrumenter_records_details_of_structured_errors
-    assert_raises(StructuredError) do
+    assert_raises(Observable::StructuredError) do
       method_that_raises_exception(
         Observable.instrumenter,
-        StructuredError.new("error message", type: "Error::Class", context: {foo: "bar"})
+        Observable::StructuredError.new("error message", type: "Error::Class", context: {foo: "bar"})
       )
     end
 

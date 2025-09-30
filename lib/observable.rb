@@ -3,6 +3,7 @@
 require_relative "observable/version"
 require_relative "observable/configuration"
 require_relative "observable/instrumenter"
+require_relative "observable/structured_error"
 require_relative "observable/persistence/span"
 require_relative "observable/persistence/span_repo"
 require_relative "observable/persistence/trace"
