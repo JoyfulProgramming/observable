@@ -13,5 +13,9 @@ module Observable
     def to_h
       {message: message}.merge(@context)
     end
+
+    def inspect
+      "#<#{self.class.name}: #{message}, type=#{type}, context=#{@context.inspect}>"
+    end
   end
 end

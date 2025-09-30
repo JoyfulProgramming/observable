@@ -166,4 +166,14 @@ class StructuredErrorTest < Minitest::Test
 
     assert_equal "StandardError", error.type
   end
+
+  def test_inspect_follows_ruby_error_format
+    error = Observable::StructuredError.new(
+      "message",
+      type: "CustomError",
+      context: {foo: "bar"}
+    )
+
+    assert_equal %(#<Observable::StructuredError: message, type=CustomError, context={foo: "bar"}>), error.inspect
+  end
 end
