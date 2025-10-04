@@ -91,8 +91,8 @@ module Observable
       separator = caller_info.is_class_method ? "." : "#"
 
       if caller_info.method_name.include?("#") || caller_info.method_name.include?(".")
-        span_name = caller_info.method_name
-        function_name = caller_info.method_name
+        span_name = "#{caller_info.namespace}#{separator}#{caller_info.method_name.split(/[#.]/).last}"
+        function_name = "#{caller_info.namespace}#{separator}#{caller_info.method_name.split(/[#.]/).last}"
         method_name_only = caller_info.method_name.split(/[#.]/).last
       else
         span_name = "#{caller_info.namespace}#{separator}#{caller_info.method_name}"

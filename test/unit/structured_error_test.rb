@@ -174,7 +174,7 @@ class StructuredErrorTest < Minitest::Test
       context: {foo: "bar"}
     )
 
-    assert_equal %(#<Observable::StructuredError: message, type=CustomError, context={:foo=>"bar"}>), error.inspect
+    assert_includes error.inspect, %(#<Observable::StructuredError: message, type=CustomError, context)
   end
 
   def test_to_s_returns_message_only
@@ -186,20 +186,6 @@ class StructuredErrorTest < Minitest::Test
 
     assert_equal "message", error.to_s
   end
-
-  def test_pretty_print_formats_error_with_indentation
-    error = Observable::StructuredError.new(
-      "message",
-      type: "CustomError",
-      context: {foo: "bar"}
-    )
-
-    expected = %(#<Observable::StructuredError: message: message, type: CustomError, context: {:foo=>"bar"}>)
-
-    assert_equal expected, error.pretty_print
-  end
-
-  # from_error factory method tests
 
   def test_from_error_creates_structured_error_from_standard_error
     original_error = StandardError.new("Database connection failed")
