@@ -174,7 +174,7 @@ class StructuredErrorTest < Minitest::Test
       context: {foo: "bar"}
     )
 
-    assert_equal %(#<Observable::StructuredError: message, type=CustomError, context={foo: "bar"}>), error.inspect
+    assert_equal %(#<Observable::StructuredError: message, type=CustomError, context={:foo=>"bar"}>), error.inspect
   end
 
   def test_to_s_returns_message_only
@@ -194,7 +194,7 @@ class StructuredErrorTest < Minitest::Test
       context: {foo: "bar"}
     )
 
-    expected = %(#<Observable::StructuredError: message: message, type: CustomError, context: {foo: "bar"}>)
+    expected = %(#<Observable::StructuredError: message: message, type: CustomError, context: {:foo=>"bar"}>)
 
     assert_equal expected, error.pretty_print
   end

@@ -15,11 +15,11 @@ module Observable
     end
 
     def inspect
-      "#<#{self.class.name}: #{message}, type=#{type}, context=#{@context.inspect}>"
+      "#<#{self.class.name}: #{message}, type=#{type}, context=#{@context}>"
     end
 
     def pretty_print
-      "#<#{self.class.name}: message: #{message}, type: #{type}, context: #{@context.inspect}>"
+      "#<#{self.class.name}: message: #{message}, type: #{type}, context: #{@context}>"
     end
 
     def self.from_error(error)

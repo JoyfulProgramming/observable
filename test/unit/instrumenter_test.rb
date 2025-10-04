@@ -47,7 +47,7 @@ class InstrumenterTest < Minitest::Test
     end
 
     assert_hashes_match ({
-      "code.function" => "MethodHelpers#method_that_raises_exception",
+      "code.function" => "InstrumenterTest#method_that_raises_exception",
       "code.namespace" => "InstrumenterTest",
       "code.filepath" => %r{.*/test/support/method_helpers.rb},
       "code.lineno" => 43,
