@@ -21,12 +21,8 @@ Basic usage:
 require 'observable'
 
 class UserService
-  def initialize
-    @instrumenter = Observable::Instrumenter.new
-  end
-
   def create_user(name, email)
-    @instrumenter.instrument(binding) do
+    Observable.instrument(binding) do
       User.create(name: name, email: email)
     end
   end
@@ -96,7 +92,7 @@ A domain object `Customer` has an `Invoice`.
 
 ### Objective 
 
-Only send the invoice ID to the trace to save data.
+Send data from related domain objects when a method is called.
 
 ### Background
 
@@ -106,6 +102,7 @@ Imagine domain objects are `Dry::Struct` value objects:
 class Customer < Dry::Struct
   attribute :id, Dry.Types::String
   attribute :name, Dry.Types::String
+  attribute :status, Dry.Type::Symbol
   attribute :Invoice, Invoice
 end
 
@@ -124,12 +121,14 @@ end
  class Customer < Dry::Struct
    attribute :id, Dry.Types::String
    attribute :name, Dry.Types::String
+   attribute :status, Dry.Type::Symbol
    attribute :Invoice, Invoice
 
 +  def to_formatted_h
 +    {
 +      id: id,
 +      name: name,
++      status: status,
 +      invoice: {
 +       id: invoice.id
 +      }
@@ -138,7 +137,7 @@ end
  end
 ```
 
-2. Configure observable:
+2. Configure
 
 ```ruby
 Observable::Configuration.configure do |config|
@@ -146,22 +145,55 @@ Observable::Configuration.configure do |config|
     default: :to_h,
     'Customer' => :to_formatted_h
   }
-  config.serialization_depth = {
-    default: 2,
-    'Customer' => 3
-  }
 end
 ```
 
-The instrumenter tries class-specific formatters first, then falls back to the default formatter, then `to_s`.
+3. Instrument
+
+Let's say we have a use case object that marks the customer as active: `MarkCustomerAsActive#call`.
+
+How can we observe the behaviour of this use case?
+
+Instrument it like so:
+
+```diff
+ class MarkCustomerAsActive
+   def call(customer)
++    Observable.instrument(binding) do
+       customer.activate!
+       # ... more code ...
+       customer # return customer object
++    end
+   end
+ end
+```
+
+4. Use
+
+Deploy. Then behold the beauty of domain object attributes in your logs:
+
+| attribute | value |
+|------|-------|
+| `code.args.0.class_name` | `Customer` |
+| `code.args.0.id` | `1234567` |
+| `code.args.0.name` | `Joe Bloggs` |
+| `code.args.0.status` | `inactive` |
+| `code.args.0.invoice.id` | `567890` |
+| `code.return.class_name` | `Customer` |
+| `code.return.id` | `1234567` |
+| `code.return.name` | `Joe Bloggs` |
+| `code.return.status` | `active` |
+| `code.return.invoice.id` | `567890` |
+
 
 ## Benefits
 
 Why use this library? Why not write Otel attributes manually?
 
-* **Zero-touch instrumentation** - Wrap any method call without modifying existing code or manually creating spans
+* **Two line instrumentation** - Wrap any method call without modifying existing code or manually creating spans
 * **Production-ready safety** - Built-in PII filtering, serialization depth limits, and exception handling prevent common observability pitfalls
 * **Standardized telemetry** - Consistent span naming, attribute structure, and OpenTelemetry compliance across your entire application
+* **Domain objects** - Support for your own custom domain objects to express business terms in your observability data, bringing you closer to the people who pay your salary.
 
 ## License
 
