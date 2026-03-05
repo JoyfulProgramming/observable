@@ -3,6 +3,10 @@ require_relative "configuration"
 
 module Observable
   class Instrumenter
+    CALLER_STACK_LIMIT = 10
+    MAX_ARRAY_ITEMS = 10
+    DEFAULT_SERIALIZATION_DEPTH = 2
+
     attr_reader :last_captured_namespace, :config
 
     def initialize(tracer: nil, config: nil)
@@ -34,7 +38,7 @@ module Observable
     end
 
     def find_caller_location
-      locations = caller_locations(1, 10)
+      locations = caller_locations(1, CALLER_STACK_LIMIT)
       raise InstrumentationError, "Unable to determine caller location" if locations.nil? || locations.empty?
 
       instrumenter_file = __FILE__
@@ -190,11 +194,11 @@ module Observable
       when String, Numeric, TrueClass, FalseClass
         span.set_attribute("code.return", value)
       when Hash
-        serialize_hash(span, "code.return", value, 2)
+        serialize_hash(span, "code.return", value, DEFAULT_SERIALIZATION_DEPTH)
       when Array
-        serialize_array(span, "code.return", value, 2)
+        serialize_array(span, "code.return", value, DEFAULT_SERIALIZATION_DEPTH)
       else
-        serialize_object(span, "code.return", value, 2)
+        serialize_object(span, "code.return", value, DEFAULT_SERIALIZATION_DEPTH)
       end
     end
 
@@ -222,7 +226,7 @@ module Observable
     def serialize_array_with_custom_depth(span, prefix, array, custom_max_depth, depth = 0)
       return if depth > custom_max_depth
 
-      items_to_process = [array.length, 10].min
+      items_to_process = [array.length, MAX_ARRAY_ITEMS].min
       array.first(items_to_process).each_with_index do |item, index|
         serialize_argument_with_custom_depth(span, "#{prefix}.#{index}", item, custom_max_depth, nil, depth + 1)
       end
@@ -263,7 +267,7 @@ module Observable
       max_depth = get_serialization_depth_for_class("Array")
       return if depth > max_depth
 
-      items_to_process = [array.length, 10].min
+      items_to_process = [array.length, MAX_ARRAY_ITEMS].min
       array.first(items_to_process).each_with_index do |item, index|
         serialize_argument(span, "#{prefix}.#{index}", item, nil, depth + 1)
       end
@@ -316,7 +320,7 @@ module Observable
         return @config.serialization_depth
       end
 
-      @config.serialization_depth[class_name] || @config.serialization_depth[:default] || @config.serialization_depth["default"] || 2
+      @config.serialization_depth[class_name] || @config.serialization_depth[:default] || @config.serialization_depth["default"] || DEFAULT_SERIALIZATION_DEPTH
     end
 
     def should_filter_pii?(param_name)
