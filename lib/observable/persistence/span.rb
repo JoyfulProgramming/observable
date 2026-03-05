@@ -87,19 +87,6 @@ module Observable
         end
       end
 
-      def colorize_kind(kind)
-        case kind.to_s
-        when "internal"
-          colorize(kind, GREEN)
-        when "producer"
-          colorize(kind, BLUE)
-        when "consumer"
-          colorize(kind, MAGENTA)
-        else
-          colorize(kind, WHITE)
-        end
-      end
-
       def colorize_value(value)
         case value
         when String
