@@ -52,7 +52,7 @@ module Observable
       return "UnknownClass" if file_name.empty?
 
       file_name.split("_").map(&:capitalize).join
-    rescue
+    rescue StandardError
       "UnknownClass"
     end
 
@@ -65,14 +65,14 @@ module Observable
           else
             caller_self.class.name
           end
-        rescue
+        rescue StandardError
           extract_namespace_from_path(@caller_binding.eval("__FILE__"))
         end
       else
         caller_location = find_caller_location
         extract_namespace_from_path(caller_location.path)
       end
-    rescue
+    rescue StandardError
       "UnknownClass"
     end
 
@@ -82,7 +82,7 @@ module Observable
       begin
         caller_self = @caller_binding.eval("self")
         caller_self.is_a?(Class)
-      rescue
+      rescue StandardError
         false
       end
     end
@@ -353,7 +353,7 @@ module Observable
         extract_local_variables_with_numeric_indexing(args)
 
         args
-      rescue
+      rescue StandardError
         {}
       end
 
