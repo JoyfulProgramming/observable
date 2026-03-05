@@ -1,5 +1,6 @@
 require "opentelemetry/sdk"
 require_relative "configuration"
+require_relative "serialization_depth"
 
 module Observable
   class Instrumenter
@@ -8,6 +9,7 @@ module Observable
     def initialize(tracer: nil, config: nil)
       @config = config || Configuration.config
       @tracer = tracer || OpenTelemetry.tracer_provider.tracer(@config.tracer_name)
+      @serialization_depth = SerializationDepth.new(@config.serialization_depth)
     end
 
     def instrument(caller_binding = nil, &block)
@@ -312,11 +314,7 @@ module Observable
     end
 
     def get_serialization_depth_for_class(class_name)
-      if @config.serialization_depth.is_a?(Integer)
-        return @config.serialization_depth
-      end
-
-      @config.serialization_depth[class_name] || @config.serialization_depth[:default] || @config.serialization_depth["default"] || 2
+      @serialization_depth.for_class(class_name)
     end
 
     def should_filter_pii?(param_name)
