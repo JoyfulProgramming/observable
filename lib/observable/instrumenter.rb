@@ -347,7 +347,6 @@ module Observable
       private
 
       def extract_from_binding
-        @caller_binding.local_variables
         args = {}
 
         extract_local_variables_with_numeric_indexing(args)
