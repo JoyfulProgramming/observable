@@ -89,21 +89,13 @@ module Observable
 
     def create_instrumented_span(caller_info, &block)
       separator = caller_info.is_class_method ? "." : "#"
-
-      if caller_info.method_name.include?("#") || caller_info.method_name.include?(".")
-        span_name = "#{caller_info.namespace}#{separator}#{caller_info.method_name.split(/[#.]/).last}"
-        function_name = "#{caller_info.namespace}#{separator}#{caller_info.method_name.split(/[#.]/).last}"
-        method_name_only = caller_info.method_name.split(/[#.]/).last
-      else
-        span_name = "#{caller_info.namespace}#{separator}#{caller_info.method_name}"
-        function_name = "#{caller_info.namespace}#{separator}#{caller_info.method_name}"
-        method_name_only = caller_info.method_name
-      end
+      method_name_only = caller_info.method_name.split(/[#.]/).last
+      qualified_name = "#{caller_info.namespace}#{separator}#{method_name_only}"
 
       @last_captured_method_name = method_name_only
       @last_captured_namespace = caller_info.namespace
-      @tracer.in_span(span_name) do |span|
-        set_span_attributes(span, caller_info, function_name)
+      @tracer.in_span(qualified_name) do |span|
+        set_span_attributes(span, caller_info, qualified_name)
 
         begin
           result = block.call
