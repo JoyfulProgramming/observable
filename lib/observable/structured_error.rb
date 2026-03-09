@@ -45,7 +45,7 @@ module Observable
       else
         ""
       end
-    rescue
+    rescue StandardError
       ""
     end
 
@@ -63,7 +63,7 @@ module Observable
       end
 
       error.class.name
-    rescue
+    rescue StandardError
       error.class.name
     end
 
@@ -77,7 +77,7 @@ module Observable
       else
         {}
       end
-    rescue
+    rescue StandardError
       {}
     end
 
@@ -92,7 +92,7 @@ module Observable
 
       result = begin
         converter.call(error)
-      rescue
+      rescue StandardError
         nil
       end
 
